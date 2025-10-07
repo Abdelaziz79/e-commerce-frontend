@@ -9,11 +9,13 @@ import { Loader2 } from "lucide-react";
 interface ProtectedRouteProps {
   children: ReactNode;
   requireEmailVerification?: boolean;
+  userType?: "user" | "admin";
 }
 
 export function ProtectedRoute({
   children,
   requireEmailVerification = false,
+  userType = "user",
 }: ProtectedRouteProps) {
   const { user, token, isLoading } = useAuth();
   const router = useRouter();
@@ -29,8 +31,12 @@ export function ProtectedRoute({
         router.push("/verify-email");
         return;
       }
+      if (userType === "admin" && user.role !== "admin") {
+        router.push("/");
+        return;
+      }
     }
-  }, [user, token, isLoading, router, requireEmailVerification]);
+  }, [user, token, isLoading, router, requireEmailVerification, userType]);
 
   if (isLoading) {
     return (
@@ -48,6 +54,10 @@ export function ProtectedRoute({
   }
 
   if (requireEmailVerification && !user.isEmailVerified) {
+    return null;
+  }
+
+  if (userType === "admin" && user.role !== "admin") {
     return null;
   }
 

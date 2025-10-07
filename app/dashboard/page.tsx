@@ -6,8 +6,58 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/auth-context";
-import { Heart, Mail, Package, Settings, User } from "lucide-react";
+import {
+  Award,
+  DollarSign,
+  Heart,
+  Mail,
+  Package,
+  Settings,
+  ShoppingCart,
+  User,
+} from "lucide-react";
 import Link from "next/link";
+
+// Mock data for dashboard
+const recentOrders = [
+  {
+    id: "#12345",
+    product: "Premium Wireless Headset",
+    status: "Delivered",
+    date: "2025-09-25",
+    amount: 129.99,
+  },
+  {
+    id: "#12346",
+    product: "Fast Charging Power Bank",
+    status: "Shipped",
+    date: "2025-09-24",
+    amount: 49.99,
+  },
+];
+
+const stats = [
+  {
+    label: "Total Orders",
+    value: "12",
+    icon: <Package className="w-4 h-4" />,
+  },
+  {
+    label: "Total Spent",
+    value: "$1,249",
+    icon: <DollarSign className="w-4 h-4" />,
+  },
+  {
+    label: "Wishlist Items",
+    value: "8",
+    icon: <Heart className="w-4 h-4" />,
+  },
+  {
+    label: "Reward Points",
+    value: "2,450",
+    icon: <Award className="w-4 h-4" />,
+  },
+];
 
 function DashboardContent() {
   const { user } = useAuth();
@@ -15,22 +65,40 @@ function DashboardContent() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900">
             Welcome back, {user.name}!
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-gray-600 mt-1">
             Manage your account and track your orders
           </p>
         </div>
 
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {stats.map((stat, index) => (
+            <Card key={index} className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="text-gray-600">{stat.icon}</div>
+                <div>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {stat.value}
+                  </p>
+                  <p className="text-sm text-gray-500">{stat.label}</p>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {/* Account Overview */}
-          <Card className="col-span-full lg:col-span-2">
+          <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-lg">
                 <User className="h-5 w-5" />
                 Account Overview
               </CardTitle>
@@ -73,7 +141,7 @@ function DashboardContent() {
               {!user.isEmailVerified && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Mail className="h-5 w-5 text-amber-600" />
+                    <Mail className="h-4 w-4 text-amber-600" />
                     <h3 className="font-medium text-amber-800">
                       Email Verification Required
                     </h3>
@@ -93,7 +161,7 @@ function DashboardContent() {
           {/* Quick Actions */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-lg">
                 <Settings className="h-5 w-5" />
                 Quick Actions
               </CardTitle>
@@ -118,32 +186,73 @@ function DashboardContent() {
                 </Button>
               </Link>
               <Link href="/products">
-                <Button className="w-full">Start Shopping</Button>
+                <Button className="w-full">
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  Start Shopping
+                </Button>
               </Link>
             </CardContent>
           </Card>
 
           {/* Recent Orders */}
-          <Card className="col-span-full">
+          <Card className="lg:col-span-3">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                Recent Orders
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No orders yet
-                </h3>
-                <p className="text-gray-500 mb-4">
-                  When you place your first order, it will appear here.
-                </p>
-                <Link href="/products">
-                  <Button>Browse Products</Button>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Package className="h-5 w-5" />
+                  Recent Orders
+                </CardTitle>
+                <Link href="/orders">
+                  <Button variant="outline" size="sm">
+                    View All
+                  </Button>
                 </Link>
               </div>
+            </CardHeader>
+            <CardContent>
+              {recentOrders.length > 0 ? (
+                <div className="space-y-4">
+                  {recentOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                          <Package className="w-4 h-4 text-gray-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-900">
+                            {order.product}
+                          </h4>
+                          <p className="text-sm text-gray-500">
+                            Order {order.id} • {order.date}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-gray-900">
+                          ${order.amount}
+                        </p>
+                        <p className="text-sm text-green-600">{order.status}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No orders yet
+                  </h3>
+                  <p className="text-gray-500 mb-4">
+                    When you place your first order, it will appear here.
+                  </p>
+                  <Link href="/products">
+                    <Button>Browse Products</Button>
+                  </Link>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

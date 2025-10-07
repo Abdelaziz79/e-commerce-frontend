@@ -1,4 +1,9 @@
 // types/user.ts
+
+import { CartItem } from "./cart";
+import { FavoriteProduct } from "./favorite";
+import { OrderHistoryReference } from "./order";
+
 export interface Address {
   _id?: string;
   address: string;
@@ -6,12 +11,6 @@ export interface Address {
   postalCode: string;
   country: string;
   isDefault: boolean;
-}
-
-export interface CartItem {
-  product: string;
-  quantity: number;
-  price: number;
 }
 
 export interface UserProfile {
@@ -23,11 +22,12 @@ export interface UserProfile {
   phone?: string;
   cart: CartItem[];
   addresses: Address[];
-  favorites: string[];
-  orderHistory: string[];
+  favorites: FavoriteProduct[];
+  orderHistory: OrderHistoryReference[];
   createdAt: string;
 }
 
+// --- API Payloads ---
 export interface UpdateProfileData {
   name?: string;
   email?: string;
@@ -39,22 +39,11 @@ export interface UpdatePasswordData {
   newPassword: string;
 }
 
-export interface AddAddressData {
-  address: string;
-  city: string;
-  postalCode: string;
-  country: string;
-  isDefault?: boolean;
-}
+export type AddAddressData = Omit<Address, "_id">;
 
-export interface UpdateAddressData {
-  address?: string;
-  city?: string;
-  postalCode?: string;
-  country?: string;
-  isDefault?: boolean;
-}
+export type UpdateAddressData = Partial<AddAddressData>;
 
+// --- API Responses ---
 export interface UserProfileResponse {
   status: string;
   data: UserProfile;

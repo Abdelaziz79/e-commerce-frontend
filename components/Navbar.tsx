@@ -86,24 +86,27 @@ export function Navbar() {
           {/* Auth-aware user menu */}
           {!isLoading && user ? (
             <>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hidden md:flex hover:bg-gray-100 rounded-full"
-              >
-                <Heart className="h-5 w-5 text-gray-700" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hover:bg-gray-100 rounded-full relative"
-              >
-                <ShoppingCart className="h-5 w-5 text-gray-700" />
-                <span className="absolute -top-1 -right-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full shadow-md">
-                  0
-                </span>
-              </Button>
-
+              <Link href="/favorites">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hidden md:flex hover:bg-gray-100 rounded-full"
+                >
+                  <Heart className="h-5 w-5 text-gray-700" />
+                </Button>
+              </Link>
+              <Link href="/cart">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hover:bg-gray-100 rounded-full relative"
+                >
+                  <ShoppingCart className="h-5 w-5 text-gray-700" />
+                  <span className="absolute -top-1 -right-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full shadow-md">
+                    0
+                  </span>
+                </Button>
+              </Link>
               {/* User dropdown menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -169,23 +172,27 @@ export function Navbar() {
               >
                 <User className="h-5 w-5 text-gray-700" />
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hidden md:flex hover:bg-gray-100 rounded-full"
-              >
-                <Heart className="h-5 w-5 text-gray-700" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hover:bg-gray-100 rounded-full relative"
-              >
-                <ShoppingCart className="h-5 w-5 text-gray-700" />
-                <span className="absolute -top-1 -right-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full shadow-md">
-                  0
-                </span>
-              </Button>
+              <Link href="/favorites">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hidden md:flex hover:bg-gray-100 rounded-full"
+                >
+                  <Heart className="h-5 w-5 text-gray-700" />
+                </Button>
+              </Link>
+              <Link href="/cart">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hover:bg-gray-100 rounded-full relative"
+                >
+                  <ShoppingCart className="h-5 w-5 text-gray-700" />
+                  <span className="absolute -top-1 -right-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full shadow-md">
+                    0
+                  </span>
+                </Button>
+              </Link>
             </>
           )}
 
@@ -275,7 +282,7 @@ export function Navbar() {
                               My Orders
                             </Link>
                             <Link
-                              href="/wishlist"
+                              href="/favorites"
                               className="text-gray-800 hover:text-black font-medium text-lg transition-colors flex items-center"
                             >
                               <Heart className="mr-2 h-4 w-4" />
@@ -297,7 +304,7 @@ export function Navbar() {
                               Create Account
                             </Link>
                             <Link
-                              href="/wishlist"
+                              href="/favorites"
                               className="text-gray-800 hover:text-black font-medium text-lg transition-colors flex items-center"
                             >
                               <Heart className="mr-2 h-4 w-4" />
