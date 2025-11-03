@@ -52,7 +52,7 @@ function AddProductContent() {
     brand: "",
     countInStock: 0,
     images: [],
-    mainImage: "",
+    mainImage: undefined,
     featured: false,
     isNewProduct: true,
     onSale: false,
@@ -63,7 +63,6 @@ function AddProductContent() {
   });
 
   const [currentTag, setCurrentTag] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
   const [showDimensions, setShowDimensions] = useState(false);
   const [showWeight, setShowWeight] = useState(false);
   const [dimensions, setDimensions] = useState<ProductDimensions>({
@@ -85,9 +84,10 @@ function AddProductContent() {
     material: "",
   });
 
-  const handleInputChange = (
-    field: keyof CreateProductData,
-    value: CreateProductData[keyof CreateProductData]
+  // Updated to handle all possible types
+  const handleInputChange = <K extends keyof CreateProductData>(
+    field: K,
+    value: CreateProductData[K]
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -104,26 +104,6 @@ function AddProductContent() {
       "tags",
       formData.tags?.filter((tag) => tag !== tagToRemove) || []
     );
-  };
-
-  const handleAddImage = () => {
-    if (imageUrl.trim() && !formData.images?.includes(imageUrl.trim())) {
-      const newImages = [...(formData.images || []), imageUrl.trim()];
-      handleInputChange("images", newImages);
-      if (!formData.mainImage) {
-        handleInputChange("mainImage", newImages[0]);
-      }
-      setImageUrl("");
-    }
-  };
-
-  const handleRemoveImage = (imageToRemove: string) => {
-    const newImages =
-      formData.images?.filter((img) => img !== imageToRemove) || [];
-    handleInputChange("images", newImages);
-    if (formData.mainImage === imageToRemove) {
-      handleInputChange("mainImage", newImages[0] || "");
-    }
   };
 
   const handleAddVariation = () => {
@@ -152,11 +132,39 @@ function AddProductContent() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Build product data, excluding undefined/empty optional fields
     const productData: CreateProductData = {
-      ...formData,
+      name: formData.name,
+      description: formData.description,
+      price: formData.price,
+      category: formData.category,
+      brand: formData.brand,
+      countInStock: formData.countInStock,
+      images: formData.images,
+      ...(formData.mainImage && { mainImage: formData.mainImage }),
+      ...(formData.richDescription && {
+        richDescription: formData.richDescription,
+      }),
+      ...(formData.featured !== undefined && { featured: formData.featured }),
+      ...(formData.isNewProduct !== undefined && {
+        isNewProduct: formData.isNewProduct,
+      }),
+      ...(formData.onSale !== undefined && { onSale: formData.onSale }),
+      ...(formData.onSale &&
+        formData.salePrice && { salePrice: formData.salePrice }),
+      ...(formData.onSale &&
+        formData.saleEndDate && { saleEndDate: formData.saleEndDate }),
+      ...(formData.tags && formData.tags.length > 0 && { tags: formData.tags }),
+      ...(formData.variations &&
+        formData.variations.length > 0 && {
+          hasVariations: true,
+          variations: formData.variations,
+        }),
       ...(showDimensions && { dimensions }),
       ...(showWeight && { weight: weight.value, weightUnit: weight.unit }),
     };
+
     createProductMutation.mutate(productData);
   };
 
@@ -204,10 +212,6 @@ function AddProductContent() {
             <ImageForm
               formData={formData}
               handleInputChange={handleInputChange}
-              imageUrl={imageUrl}
-              setImageUrl={setImageUrl}
-              handleAddImage={handleAddImage}
-              handleRemoveImage={handleRemoveImage}
             />
             <CategoryTagForm
               formData={formData}

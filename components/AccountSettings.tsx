@@ -1,14 +1,14 @@
-// app/account/page.tsx
 "use client";
 
-import { useState } from "react";
-import { Settings, Mail, User, Lock, MapPin } from "lucide-react";
-import { useAuth } from "@/hooks/auth-context";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { AddressManager } from "@/components/account/address-manager";
+import { AvatarManager } from "@/components/account/avatar-manager"; // Import the new component
 import { ProfileForm } from "@/components/account/profile-form";
 import { SecurityForm } from "@/components/account/security-form";
-import { AddressManager } from "@/components/account/address-manager";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { useAuth } from "@/hooks/auth-context";
+import { Lock, Mail, MapPin, Settings, User } from "lucide-react";
+import { useState } from "react";
 
 const tabs = [
   { id: "profile", label: "Profile", icon: User },
@@ -23,19 +23,39 @@ export default function AccountSettings() {
   const renderTabContent = () => {
     switch (activeTab) {
       case "profile":
-        return <ProfileForm />;
+        // UPDATED: Render a grid with AvatarManager and ProfileForm
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <div className="lg:col-span-1">
+              <AvatarManager />
+            </div>
+            <div className="lg:col-span-2">
+              <ProfileForm />
+            </div>
+          </div>
+        );
       case "security":
         return <SecurityForm />;
       case "addresses":
         return <AddressManager />;
       default:
-        return <ProfileForm />;
+        // Default to the new profile layout as well
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <div className="lg:col-span-1">
+              <AvatarManager />
+            </div>
+            <div className="lg:col-span-2">
+              <ProfileForm />
+            </div>
+          </div>
+        );
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center space-x-4">
@@ -101,7 +121,6 @@ export default function AccountSettings() {
               </CardContent>
             </Card>
           </div>
-
           {/* Main Content */}
           <div className="lg:col-span-3">{renderTabContent()}</div>
         </div>

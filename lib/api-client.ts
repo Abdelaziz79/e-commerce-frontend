@@ -1,12 +1,17 @@
 // lib/api-client.ts
 
+import axios, {
+  AxiosError,
+  AxiosInstance,
+  AxiosRequestConfig,
+  InternalAxiosRequestConfig,
+} from "axios";
+
 // --- CORE & AUTH IMPORTS ---
 import {
-  ApiError,
   AuthResponse,
   ForgotPasswordData,
   isApiErrorResponse,
-  isValidationErrorResponse,
   LoginCredentials,
   RegisterData,
   ResetPasswordData,
@@ -49,17 +54,25 @@ import {
 
 // --- PRODUCT IMPORTS ---
 import {
+  BulkDeleteData,
+  BulkOperationResponse,
+  BulkUpdateData,
   CreateProductData,
+  LowStockParams,
   PaginatedProductsResponse,
   ProductListResponse,
   ProductResponse,
   ProductsParams,
+  ProductStatsResponse,
+  SearchProductsParams,
+  StockAdjustmentData,
   UpdateProductData,
 } from "@/types/product";
 
-// --- NEW IMPORTS FOR REFACTORED MODELS ---
+// --- MODEL IMPORTS ---
 import {
   BrandResponse,
+  BrandSearchParams,
   BrandsParams,
   CreateBrandData,
   PaginatedBrandsResponse,
@@ -68,475 +81,1127 @@ import {
 import {
   CategoriesParams,
   CategoryResponse,
+  CategorySearchParams,
   CreateCategoryData,
   PaginatedCategoriesResponse,
   UpdateCategoryData,
 } from "@/types/category";
 import {
   CreateReviewData,
+  MyReviewsResponse,
   PaginatedReviewsResponse,
   ReviewResponse,
   ReviewsParams,
+  ReviewStatsResponse,
   UpdateReviewData,
+  VoteReviewResponse,
 } from "@/types/review";
 
-// --- CART & FAVORITES TYPES (Add these to your types/user.ts) ---
+// ==================== CONFIGURATION ====================
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
+const TOKEN_KEY = "auth_token";
+const REQUEST_TIMEOUT = 30000; // 30 seconds
+
+// ==================== TYPES ====================
+
+interface RequestConfig extends AxiosRequestConfig {
+  skipAuth?: boolean;
+}
+
+// ==================== ERROR HANDLING ====================
+
+export class ApiClientError extends Error {
+  constructor(
+    message: string,
+    public status?: number,
+    public validationErrors?: ValidationError[],
+    public code?: string
+  ) {
+    super(message);
+    this.name = "ApiClientError";
+    Object.setPrototypeOf(this, ApiClientError.prototype);
+  }
+
+  /**
+   * Check if error is a validation error
+   */
+  isValidationError(): boolean {
+    return !!this.validationErrors?.length;
+  }
+
+  /**
+   * Check if error is an authentication error
+   */
+  isAuthError(): boolean {
+    return this.status === 401;
+  }
+
+  /**
+   * Check if error is a permission error
+   */
+  isPermissionError(): boolean {
+    return this.status === 403;
+  }
+
+  /**
+   * Check if error is a not found error
+   */
+  isNotFoundError(): boolean {
+    return this.status === 404;
+  }
+
+  /**
+   * Check if error is a server error
+   */
+  isServerError(): boolean {
+    return !!this.status && this.status >= 500;
+  }
+
+  /**
+   * Check if error is a network error
+   */
+  isNetworkError(): boolean {
+    return !this.status;
+  }
+}
+
+// ==================== TOKEN STORAGE ====================
+
+export class TokenStorage {
+  private static instance: TokenStorage;
+  private tokenKey = TOKEN_KEY;
+
+  private constructor() {}
+
+  static getInstance(): TokenStorage {
+    if (!TokenStorage.instance) {
+      TokenStorage.instance = new TokenStorage();
+    }
+    return TokenStorage.instance;
+  }
+
+  get(): string | null {
+    if (typeof window === "undefined") return null;
+    try {
+      return localStorage.getItem(this.tokenKey);
+    } catch (error) {
+      console.warn("Failed to access localStorage:", error);
+      return null;
+    }
+  }
+
+  set(token: string): void {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(this.tokenKey, token);
+    } catch (error) {
+      console.error("Failed to store token:", error);
+    }
+  }
+
+  remove(): void {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.removeItem(this.tokenKey);
+    } catch (error) {
+      console.error("Failed to remove token:", error);
+    }
+  }
+}
+
+// ==================== API CLIENT ====================
+
 class ApiClient {
-  private baseURL: string;
+  private axiosInstance: AxiosInstance;
+  private tokenStorage: TokenStorage;
+  private requestQueue: Map<string, AbortController> = new Map();
 
   constructor(baseURL: string) {
-    this.baseURL = baseURL;
-  }
-
-  /**
-   * Core request method to handle all API calls.
-   */
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
-    const token =
-      typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
-
-    const config: RequestInit = {
+    this.tokenStorage = TokenStorage.getInstance();
+    this.axiosInstance = axios.create({
+      baseURL,
+      timeout: REQUEST_TIMEOUT,
       headers: {
         "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
       },
-      ...options,
+    });
+
+    this.setupInterceptors();
+  }
+
+  /**
+   * Setup Axios interceptors for auth and error handling
+   */
+  private setupInterceptors(): void {
+    // Request interceptor
+    this.axiosInstance.interceptors.request.use(
+      (config: InternalAxiosRequestConfig) => {
+        // Add auth token unless explicitly skipped
+        if (!config.headers?.skipAuth) {
+          const token = this.tokenStorage.get();
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+        }
+
+        // Remove custom headers that shouldn't be sent
+        delete config.headers?.skipAuth;
+
+        // CRITICAL FIX: Remove Content-Type for FormData
+        // Let browser set it automatically with boundary
+        if (config.data instanceof FormData) {
+          delete config.headers["Content-Type"];
+        }
+
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
+
+    // Response interceptor
+    this.axiosInstance.interceptors.response.use(
+      (response) => response,
+      (error: AxiosError) => {
+        const apiError = this.handleError(error);
+
+        // Auto logout on 401
+        if (apiError.isAuthError()) {
+          this.handleAuthError();
+        }
+
+        return Promise.reject(apiError);
+      }
+    );
+  }
+
+  /**
+   * Handle authentication errors
+   */
+  private handleAuthError(): void {
+    this.tokenStorage.remove();
+
+    // Only redirect if we're in the browser
+    if (typeof window !== "undefined") {
+      // You can dispatch an event or use a callback here
+      window.dispatchEvent(new CustomEvent("auth:logout"));
+    }
+  }
+
+  /**
+   * Enhanced error handler with better categorization
+   */
+  private handleError(error: AxiosError): ApiClientError {
+    // Network error
+    if (!error.response) {
+      if (error.code === "ECONNABORTED") {
+        return new ApiClientError(
+          "Request timeout. Please try again.",
+          undefined,
+          undefined,
+          "TIMEOUT"
+        );
+      }
+      return new ApiClientError(
+        "Network error. Please check your connection.",
+        undefined,
+        undefined,
+        "NETWORK_ERROR"
+      );
+    }
+
+    const { status, data } = error.response;
+
+    // Validation errors
+    if (
+      typeof data === "object" &&
+      data !== null &&
+      "errors" in data &&
+      Array.isArray(data.errors)
+    ) {
+      const errorMessages = data.errors
+        .map((err: ValidationError) => err.msg)
+        .filter(Boolean);
+
+      return new ApiClientError(
+        errorMessages.join(". ") || "Validation error occurred.",
+        status,
+        data.errors,
+        "VALIDATION_ERROR"
+      );
+    }
+
+    // API error with message
+    if (isApiErrorResponse(data)) {
+      return new ApiClientError(data.message, status, undefined, data.code);
+    }
+
+    // HTTP status-based errors
+    const errorMessages: Record<number, string> = {
+      400: "Bad request. Please check your input.",
+      401: "Authentication required. Please log in.",
+      403: "You don't have permission to perform this action.",
+      404: "The requested resource was not found.",
+      409: "Conflict. The resource already exists.",
+      422: "Invalid data provided.",
+      429: "Too many requests. Please try again later.",
+      500: "Server error. Please try again later.",
+      502: "Bad gateway. Please try again later.",
+      503: "Service unavailable. Please try again later.",
     };
 
-    try {
-      const response = await fetch(url, config);
+    const message = errorMessages[status] || "An unexpected error occurred.";
 
-      // Handle 204 No Content response
-      if (response.status === 204) {
-        return {} as T;
-      }
-
-      const data: unknown = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 400 && isValidationErrorResponse(data)) {
-          const errorMessages = data.errors.map(
-            (error: ValidationError) => error.msg
-          );
-          const errorMessage = errorMessages.join(". ");
-          const validationError = new Error(errorMessage) as ApiError;
-          validationError.status = response.status;
-          validationError.validationErrors = data.errors;
-          throw validationError;
-        }
-
-        if (isApiErrorResponse(data)) {
-          const apiError = new Error(data.message) as ApiError;
-          apiError.status = response.status;
-          throw apiError;
-        }
-
-        const fallbackError = new Error(
-          "An unexpected error occurred"
-        ) as ApiError;
-        fallbackError.status = response.status;
-        throw fallbackError;
-      }
-
-      return data as T;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error("A network error occurred.");
-    }
+    return new ApiClientError(message, status, undefined, `HTTP_${status}`);
   }
 
+  /**
+   * Create query string from params object
+   */
   private createQueryString(params: Record<string, unknown>): string {
     const cleanParams: Record<string, string> = {};
-    for (const key in params) {
-      const value = params[key];
-      // Only include the parameter if it's not null or undefined
-      if (value !== null && value !== undefined) {
-        cleanParams[key] = String(value);
+
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== null && value !== undefined && value !== "") {
+        if (Array.isArray(value)) {
+          cleanParams[key] = value.join(",");
+        } else {
+          cleanParams[key] = String(value);
+        }
       }
     }
-    return new URLSearchParams(cleanParams).toString();
+
+    const queryString = new URLSearchParams(cleanParams).toString();
+    return queryString ? `?${queryString}` : "";
   }
 
-  // --- Auth endpoints ---
-  login = (credentials: LoginCredentials) =>
-    this.request<AuthResponse>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify(credentials),
+  /**
+   * Helper to create FormData or JSON body
+   * Handles single files, arrays of files, and regular data
+   */
+  private createRequestBody(
+    data: Record<string, unknown>,
+    fileFields: string[] = []
+  ): FormData | Record<string, unknown> {
+    // Check if any file field contains a File or File[]
+    const hasFile = fileFields.some((field) => {
+      const value = data[field];
+      if (value instanceof File) return true;
+      if (Array.isArray(value) && value.length > 0 && value[0] instanceof File)
+        return true;
+      return false;
     });
 
-  register = (userData: RegisterData) =>
-    this.request<AuthResponse>("/auth/register", {
-      method: "POST",
-      body: JSON.stringify(userData),
-    });
+    if (hasFile) {
+      const formData = new FormData();
+      let mainImageFile: File | null = null;
+      let mainImageIndex: number = -1;
 
-  forgotPassword = (data: ForgotPasswordData): Promise<{ message: string }> =>
-    this.request("/auth/forgot-password", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+      // First pass: check if mainImage is in images array
+      if (data.mainImage instanceof File && Array.isArray(data.images)) {
+        const mainImg = data.mainImage;
+        mainImageIndex = data.images.findIndex(
+          (img: File) =>
+            img instanceof File &&
+            img.name === mainImg.name &&
+            img.size === mainImg.size &&
+            img.lastModified === mainImg.lastModified
+        );
 
-  resetPassword = (token: string, data: ResetPasswordData) =>
-    this.request<AuthResponse>(`/auth/reset-password/${token}`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-
-  verifyEmail = (token: string) =>
-    this.request(`/auth/verify-email/${token}`, { method: "GET" });
-
-  // --- User profile endpoints ---
-  getUserProfile = () => this.request<UserProfileResponse>("/users/profile");
-
-  updateUserProfile = (data: UpdateProfileData) =>
-    this.request<UserUpdateResponse>("/users/profile", {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-
-  updateUserPassword = (data: UpdatePasswordData) =>
-    this.request<PasswordUpdateResponse>("/users/update-password", {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-
-  // --- Address endpoints ---
-  addUserAddress = (data: AddAddressData) =>
-    this.request<AddressResponse>("/users/address", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-
-  updateUserAddress = (addressId: string, data: UpdateAddressData) =>
-    this.request<AddressResponse>(`/users/address/${addressId}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-
-  deleteUserAddress = (addressId: string) =>
-    this.request<AddressResponse>(`/users/address/${addressId}`, {
-      method: "DELETE",
-    });
-
-  // --- Cart endpoints (NEW) ---
-  getCart = () => this.request<CartResponse>("/users/cart");
-
-  addToCart = (data: AddToCartData) =>
-    this.request<CartResponse>("/users/cart", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-
-  updateCartItem = (productId: string, data: UpdateCartItemData) =>
-    this.request<CartResponse>(`/users/cart/${productId}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-
-  removeFromCart = (productId: string, variationSku?: string) => {
-    const queryString = variationSku ? `?variationSku=${variationSku}` : "";
-    return this.request<CartResponse>(
-      `/users/cart/${productId}${queryString}`,
-      {
-        method: "DELETE",
+        if (mainImageIndex === -1) {
+          // mainImage is NOT in images array, need to upload separately
+          mainImageFile = mainImg;
+        }
       }
+
+      Object.entries(data).forEach(([key, value]) => {
+        if (value === null || value === undefined) {
+          return; // Skip null/undefined values
+        }
+
+        // Skip mainImage processing here - handled separately
+        if (key === "mainImage") {
+          return;
+        }
+
+        // Handle File objects
+        if (value instanceof File) {
+          formData.append(key, value);
+        }
+        // Handle arrays of Files (like images)
+        else if (
+          Array.isArray(value) &&
+          value.length > 0 &&
+          value[0] instanceof File
+        ) {
+          value.forEach((file: File) => {
+            formData.append(key, file);
+          });
+        }
+        // Handle regular arrays (not Files)
+        else if (Array.isArray(value)) {
+          formData.append(key, JSON.stringify(value));
+        }
+        // Handle objects (but not Date or File)
+        else if (typeof value === "object" && !(value instanceof Date)) {
+          formData.append(key, JSON.stringify(value));
+        }
+        // Handle primitive values
+        else {
+          formData.append(key, String(value));
+        }
+      });
+
+      // Handle mainImage after other fields
+      if (mainImageFile) {
+        // Upload mainImage as separate file
+        formData.append("mainImage", mainImageFile);
+      } else if (mainImageIndex >= 0) {
+        // mainImage is in images array, send index
+        formData.append("mainImageIndex", String(mainImageIndex));
+      }
+
+      return formData;
+    }
+
+    return data;
+  }
+
+  /**
+   * Generic request method with better type safety
+   */
+  private async request<T>(
+    method: "get" | "post" | "put" | "delete" | "patch",
+    url: string,
+    data?: unknown,
+    config?: RequestConfig
+  ): Promise<T> {
+    const response = await this.axiosInstance.request<T>({
+      method,
+      url,
+      data,
+      ...config,
+    });
+    return response.data;
+  }
+
+  /**
+   * Cancel pending requests for a specific endpoint
+   */
+  cancelRequest(endpoint: string): void {
+    const controller = this.requestQueue.get(endpoint);
+    if (controller) {
+      controller.abort();
+      this.requestQueue.delete(endpoint);
+    }
+  }
+
+  /**
+   * Cancel all pending requests
+   */
+  cancelAllRequests(): void {
+    this.requestQueue.forEach((controller) => controller.abort());
+    this.requestQueue.clear();
+  }
+
+  // ==================== AUTH ENDPOINTS ====================
+
+  login = async (credentials: LoginCredentials): Promise<AuthResponse> => {
+    return this.request<AuthResponse>("post", "/auth/login", credentials);
+  };
+
+  register = async (userData: RegisterData): Promise<AuthResponse> => {
+    return this.request<AuthResponse>("post", "/auth/register", userData);
+  };
+
+  forgotPassword = async (
+    data: ForgotPasswordData
+  ): Promise<{ message: string }> => {
+    return this.request<{ message: string }>(
+      "post",
+      "/auth/forgot-password",
+      data
     );
   };
 
-  clearCart = () =>
-    this.request<CartResponse>("/users/cart", {
-      method: "DELETE",
-    });
-
-  // --- Favorites endpoints (NEW) ---
-  getFavorites = (params: ProductsParams = {}) => {
-    // APPLY THE FIX HERE
-    const queryString = this.createQueryString(params);
-    return this.request<FavoritesResponse>(`/users/favorites?${queryString}`);
+  resetPassword = async (
+    token: string,
+    data: ResetPasswordData
+  ): Promise<AuthResponse> => {
+    return this.request<AuthResponse>(
+      "post",
+      `/auth/reset-password/${token}`,
+      data
+    );
   };
 
-  addToFavorites = (productId: string) =>
-    this.request<AddToFavoritesResponse>("/users/favorites", {
-      method: "POST",
-      body: JSON.stringify({ productId }),
-    });
-
-  removeFromFavorites = (productId: string) =>
-    this.request<RemoveFromFavoritesResponse>(`/users/favorites/${productId}`, {
-      method: "DELETE",
-    });
-
-  // --- Order history endpoint (NEW) ---
-  getOrderHistory = (params: ProductsParams = {}) => {
-    const queryString = new URLSearchParams(
-      params as Record<string, string>
-    ).toString();
-    return this.request<OrderHistoryResponse>(`/users/orders?${queryString}`);
+  verifyEmail = async (token: string): Promise<{ message: string }> => {
+    return this.request<{ message: string }>(
+      "get",
+      `/auth/verify-email/${token}`
+    );
   };
 
-  // --- Product endpoints ---
-  async getProducts(
+  logout = (): void => {
+    this.tokenStorage.remove();
+    this.cancelAllRequests();
+  };
+
+  // ==================== USER PROFILE ENDPOINTS ====================
+
+  getUserProfile = async (): Promise<UserProfileResponse> => {
+    return this.request<UserProfileResponse>("get", "/users/profile");
+  };
+
+  updateUserProfile = async (
+    data: UpdateProfileData
+  ): Promise<UserUpdateResponse> => {
+    return this.request<UserUpdateResponse>("put", "/users/profile", data);
+  };
+
+  updateUserPassword = async (
+    data: UpdatePasswordData
+  ): Promise<PasswordUpdateResponse> => {
+    return this.request<PasswordUpdateResponse>(
+      "put",
+      "/users/update-password",
+      data
+    );
+  };
+
+  // ==================== USER AVATAR ENDPOINTS ====================
+
+  /**
+   * Upload or update user avatar
+   */
+  uploadAvatar = async (
+    file: File
+  ): Promise<{ status: string; message: string; data: { avatar: string } }> => {
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    return this.request<{
+      status: string;
+      message: string;
+      data: { avatar: string };
+    }>("put", "/users/avatar", formData);
+  };
+
+  /**
+   * Delete user avatar (reset to default)
+   */
+  deleteAvatar = async (): Promise<{
+    status: string;
+    message: string;
+    data: { avatar: string };
+  }> => {
+    return this.request<{
+      status: string;
+      message: string;
+      data: { avatar: string };
+    }>("delete", "/users/avatar");
+  };
+
+  // ==================== ADDRESS ENDPOINTS ====================
+
+  addUserAddress = async (data: AddAddressData): Promise<AddressResponse> => {
+    return this.request<AddressResponse>("post", "/users/address", data);
+  };
+
+  updateUserAddress = async (
+    addressId: string,
+    data: UpdateAddressData
+  ): Promise<AddressResponse> => {
+    return this.request<AddressResponse>(
+      "put",
+      `/users/address/${addressId}`,
+      data
+    );
+  };
+
+  deleteUserAddress = async (addressId: string): Promise<AddressResponse> => {
+    return this.request<AddressResponse>(
+      "delete",
+      `/users/address/${addressId}`
+    );
+  };
+
+  // ==================== CART ENDPOINTS ====================
+
+  getCart = async (): Promise<CartResponse> => {
+    return this.request<CartResponse>("get", "/users/cart");
+  };
+
+  addToCart = async (data: AddToCartData): Promise<CartResponse> => {
+    return this.request<CartResponse>("post", "/users/cart", data);
+  };
+
+  updateCartItem = async (
+    productId: string,
+    data: UpdateCartItemData
+  ): Promise<CartResponse> => {
+    return this.request<CartResponse>("put", `/users/cart/${productId}`, data);
+  };
+
+  removeFromCart = async (
+    productId: string,
+    variationSku?: string
+  ): Promise<CartResponse> => {
+    const endpoint = variationSku
+      ? `/users/cart/${productId}?variationSku=${variationSku}`
+      : `/users/cart/${productId}`;
+
+    return this.request<CartResponse>("delete", endpoint);
+  };
+
+  clearCart = async (): Promise<CartResponse> => {
+    return this.request<CartResponse>("delete", "/users/cart");
+  };
+
+  // ==================== FAVORITES ENDPOINTS ====================
+
+  getFavorites = async (
     params: ProductsParams = {}
-  ): Promise<PaginatedProductsResponse> {
-    const queryString = new URLSearchParams(
-      params as Record<string, string>
-    ).toString();
-    return this.request<PaginatedProductsResponse>(`/products?${queryString}`);
-  }
-
-  getFeaturedProducts = (limit = 5) =>
-    this.request<ProductListResponse>(`/products/featured?limit=${limit}`);
-
-  getOnSaleProducts = (limit = 10) =>
-    this.request<ProductListResponse>(`/products/sale?limit=${limit}`);
-
-  getProductById = (id: string) =>
-    this.request<ProductResponse>(`/products/${id}`);
-
-  createProduct = (data: CreateProductData) =>
-    this.request<ProductResponse>("/products", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-
-  updateProduct = (productId: string, data: UpdateProductData) =>
-    this.request<ProductResponse>(`/products/${productId}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-
-  deleteProduct = (productId: string) =>
-    this.request<{ status: string; message: string }>(
-      `/products/${productId}`,
-      { method: "DELETE" }
+  ): Promise<FavoritesResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<FavoritesResponse>(
+      "get",
+      `/users/favorites${queryString}`
     );
+  };
 
-  // --- Category endpoints ---
-  async getCategories(
+  addToFavorites = async (
+    productId: string
+  ): Promise<AddToFavoritesResponse> => {
+    return this.request<AddToFavoritesResponse>("post", "/users/favorites", {
+      productId,
+    });
+  };
+
+  removeFromFavorites = async (
+    productId: string
+  ): Promise<RemoveFromFavoritesResponse> => {
+    return this.request<RemoveFromFavoritesResponse>(
+      "delete",
+      `/users/favorites/${productId}`
+    );
+  };
+
+  // ==================== ORDER HISTORY ENDPOINT ====================
+
+  getOrderHistory = async (
+    params: ProductsParams = {}
+  ): Promise<OrderHistoryResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<OrderHistoryResponse>(
+      "get",
+      `/users/orders${queryString}`
+    );
+  };
+
+  // ==================== PRODUCT ENDPOINTS ====================
+
+  /**
+   * Search products by query
+   */
+  searchProducts = async (
+    params: SearchProductsParams
+  ): Promise<PaginatedProductsResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<PaginatedProductsResponse>(
+      "get",
+      `/products/search${queryString}`
+    );
+  };
+
+  /**
+   * Get product statistics (Admin only)
+   */
+  getProductStats = async (): Promise<ProductStatsResponse> => {
+    return this.request<ProductStatsResponse>("get", "/products/stats");
+  };
+
+  /**
+   * Get low stock products (Admin only)
+   */
+  getLowStockProducts = async (
+    params: LowStockParams = {}
+  ): Promise<ProductListResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<ProductListResponse>(
+      "get",
+      `/products/low-stock${queryString}`
+    );
+  };
+
+  /**
+   * Bulk update products (Admin only)
+   */
+  bulkUpdateProducts = async (
+    data: BulkUpdateData
+  ): Promise<BulkOperationResponse> => {
+    return this.request<BulkOperationResponse>("patch", "/products/bulk", data);
+  };
+
+  /**
+   * Bulk delete products (Admin only)
+   */
+  bulkDeleteProducts = async (
+    data: BulkDeleteData
+  ): Promise<BulkOperationResponse> => {
+    return this.request<BulkOperationResponse>(
+      "delete",
+      "/products/bulk",
+      data
+    );
+  };
+
+  /**
+   * Adjust product stock (Admin only)
+   */
+  adjustProductStock = async (
+    productId: string,
+    data: StockAdjustmentData
+  ): Promise<ProductResponse> => {
+    return this.request<ProductResponse>(
+      "patch",
+      `/products/${productId}/stock`,
+      data
+    );
+  };
+
+  getProducts = async (
+    params: ProductsParams = {}
+  ): Promise<PaginatedProductsResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<PaginatedProductsResponse>(
+      "get",
+      `/products${queryString}`
+    );
+  };
+
+  getFeaturedProducts = async (limit = 5): Promise<ProductListResponse> => {
+    return this.request<ProductListResponse>(
+      "get",
+      `/products/featured?limit=${limit}`
+    );
+  };
+
+  getOnSaleProducts = async (limit = 10): Promise<ProductListResponse> => {
+    return this.request<ProductListResponse>(
+      "get",
+      `/products/sale?limit=${limit}`
+    );
+  };
+
+  getProductById = async (id: string): Promise<ProductResponse> => {
+    return this.request<ProductResponse>("get", `/products/${id}`);
+  };
+
+  /**
+   * Create product with file upload support
+   */
+  createProduct = async (data: CreateProductData): Promise<ProductResponse> => {
+    const body = this.createRequestBody(
+      data as unknown as Record<string, unknown>,
+      ["images", "mainImage"]
+    );
+    return this.request<ProductResponse>("post", "/products", body);
+  };
+
+  /**
+   * Update product with file upload support
+   */
+  updateProduct = async (
+    productId: string,
+    data: UpdateProductData
+  ): Promise<ProductResponse> => {
+    const body = this.createRequestBody(
+      data as unknown as Record<string, unknown>,
+      ["images", "mainImage"]
+    );
+    return this.request<ProductResponse>("put", `/products/${productId}`, body);
+  };
+
+  deleteProduct = async (
+    productId: string
+  ): Promise<{ status: string; message: string }> => {
+    return this.request<{ status: string; message: string }>(
+      "delete",
+      `/products/${productId}`
+    );
+  };
+
+  // ==================== CATEGORY ENDPOINTS ====================
+
+  getCategories = async (
     params: CategoriesParams = {}
-  ): Promise<PaginatedCategoriesResponse> {
-    const queryString = new URLSearchParams(
-      params as Record<string, string>
-    ).toString();
+  ): Promise<PaginatedCategoriesResponse> => {
+    const queryString = this.createQueryString(params);
     return this.request<PaginatedCategoriesResponse>(
-      `/categories?${queryString}`
+      "get",
+      `/categories${queryString}`
     );
-  }
+  };
 
-  getCategoryById = (id: string) =>
-    this.request<CategoryResponse>(`/categories/${id}`);
+  getAdminCategories = async (
+    params: CategoriesParams = {}
+  ): Promise<PaginatedCategoriesResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<PaginatedCategoriesResponse>(
+      "get",
+      `/categories/admin/all${queryString}`
+    );
+  };
 
-  createCategory = (data: CreateCategoryData) =>
-    this.request<CategoryResponse>("/categories", {
-      method: "POST",
-      body: JSON.stringify(data),
+  searchCategories = async (
+    params: CategorySearchParams
+  ): Promise<PaginatedCategoriesResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<PaginatedCategoriesResponse>(
+      "get",
+      `/categories/search${queryString}`
+    );
+  };
+
+  searchAdminCategories = async (
+    params: CategorySearchParams
+  ): Promise<PaginatedCategoriesResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<PaginatedCategoriesResponse>(
+      "get",
+      `/categories/admin/search${queryString}`
+    );
+  };
+
+  getCategoryById = async (id: string): Promise<CategoryResponse> => {
+    return this.request<CategoryResponse>("get", `/categories/${id}`);
+  };
+
+  createCategory = async (
+    data: CreateCategoryData
+  ): Promise<CategoryResponse> => {
+    const body = this.createRequestBody(
+      data as unknown as Record<string, unknown>,
+      ["image"]
+    );
+    return this.request<CategoryResponse>("post", "/categories", body, {
+      headers:
+        body instanceof FormData
+          ? { "Content-Type": "multipart/form-data" }
+          : undefined,
     });
+  };
 
-  updateCategory = (categoryId: string, data: UpdateCategoryData) =>
-    this.request<CategoryResponse>(`/categories/${categoryId}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
+  updateCategory = async (
+    categoryId: string,
+    data: UpdateCategoryData
+  ): Promise<CategoryResponse> => {
+    const body = this.createRequestBody(data as Record<string, unknown>, [
+      "image",
+    ]);
+    return this.request<CategoryResponse>(
+      "put",
+      `/categories/${categoryId}`,
+      body,
+      {
+        headers:
+          body instanceof FormData
+            ? { "Content-Type": "multipart/form-data" }
+            : undefined,
+      }
+    );
+  };
+
+  deleteCategory = async (categoryId: string): Promise<void> => {
+    return this.request<void>("delete", `/categories/${categoryId}`);
+  };
+
+  toggleCategoryActive = async (
+    categoryId: string
+  ): Promise<CategoryResponse> => {
+    return this.request<CategoryResponse>(
+      "put",
+      `/categories/${categoryId}/toggle-active`
+    );
+  };
+
+  // ==================== BRAND ENDPOINTS ====================
+
+  getBrands = async (
+    params: BrandsParams = {}
+  ): Promise<PaginatedBrandsResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<PaginatedBrandsResponse>(
+      "get",
+      `/brands${queryString}`
+    );
+  };
+
+  getAdminBrands = async (
+    params: BrandsParams = {}
+  ): Promise<PaginatedBrandsResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<PaginatedBrandsResponse>(
+      "get",
+      `/brands/admin/all${queryString}`
+    );
+  };
+
+  searchBrands = async (
+    params: BrandSearchParams
+  ): Promise<PaginatedBrandsResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<PaginatedBrandsResponse>(
+      "get",
+      `/brands/search${queryString}`
+    );
+  };
+
+  searchAdminBrands = async (
+    params: BrandSearchParams
+  ): Promise<PaginatedBrandsResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<PaginatedBrandsResponse>(
+      "get",
+      `/brands/admin/search${queryString}`
+    );
+  };
+
+  getBrandById = async (id: string): Promise<BrandResponse> => {
+    return this.request<BrandResponse>("get", `/brands/${id}`);
+  };
+
+  createBrand = async (data: CreateBrandData): Promise<BrandResponse> => {
+    const body = this.createRequestBody(
+      data as unknown as Record<string, unknown>,
+      ["logo"]
+    );
+    return this.request<BrandResponse>("post", "/brands", body, {
+      headers:
+        body instanceof FormData
+          ? { "Content-Type": "multipart/form-data" }
+          : undefined,
     });
+  };
 
-  deleteCategory = (categoryId: string) =>
-    this.request<void>(`/categories/${categoryId}`, { method: "DELETE" });
-
-  // --- Brand endpoints ---
-  async getBrands(params: BrandsParams = {}): Promise<PaginatedBrandsResponse> {
-    const queryString = new URLSearchParams(
-      params as Record<string, string>
-    ).toString();
-    return this.request<PaginatedBrandsResponse>(`/brands?${queryString}`);
-  }
-
-  getBrandById = (id: string) => this.request<BrandResponse>(`/brands/${id}`);
-
-  createBrand = (data: CreateBrandData) =>
-    this.request<BrandResponse>("/brands", {
-      method: "POST",
-      body: JSON.stringify(data),
+  updateBrand = async (
+    brandId: string,
+    data: UpdateBrandData
+  ): Promise<BrandResponse> => {
+    const body = this.createRequestBody(data as Record<string, unknown>, [
+      "logo",
+    ]);
+    return this.request<BrandResponse>("put", `/brands/${brandId}`, body, {
+      headers:
+        body instanceof FormData
+          ? { "Content-Type": "multipart/form-data" }
+          : undefined,
     });
+  };
 
-  updateBrand = (brandId: string, data: UpdateBrandData) =>
-    this.request<BrandResponse>(`/brands/${brandId}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
+  deleteBrand = async (brandId: string): Promise<void> => {
+    return this.request<void>("delete", `/brands/${brandId}`);
+  };
 
-  deleteBrand = (brandId: string) =>
-    this.request<void>(`/brands/${brandId}`, { method: "DELETE" });
+  toggleBrandActive = async (brandId: string): Promise<BrandResponse> => {
+    return this.request<BrandResponse>(
+      "put",
+      `/brands/${brandId}/toggle-active`
+    );
+  };
 
-  // --- Review endpoints ---
-  async getReviews(
+  // ==================== REVIEW ENDPOINTS ====================
+
+  getReviews = async (
     params: ReviewsParams = {}
-  ): Promise<PaginatedReviewsResponse> {
-    const queryString = new URLSearchParams(
-      params as Record<string, string>
-    ).toString();
-    return this.request<PaginatedReviewsResponse>(`/reviews?${queryString}`);
-  }
-
-  getReviewById = (id: string) =>
-    this.request<ReviewResponse>(`/reviews/${id}`);
-
-  createReview = (data: CreateReviewData) =>
-    this.request<ReviewResponse>("/reviews", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-
-  updateReview = (reviewId: string, data: UpdateReviewData) =>
-    this.request<ReviewResponse>(`/reviews/${reviewId}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-
-  deleteReview = (reviewId: string) =>
-    this.request<void>(`/reviews/${reviewId}`, { method: "DELETE" });
-
-  // --- Order endpoints ---
-
-  /**
-   * Create a new order
-   */
-  createOrder = (data: CreateOrderData) =>
-    this.request<OrderResponse>("/orders", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-
-  /**
-   * Get user's own orders
-   */
-  getMyOrders = (params: OrdersParams = {}) => {
-    // APPLY THE FIX HERE
+  ): Promise<PaginatedReviewsResponse> => {
     const queryString = this.createQueryString(params);
-    return this.request<PaginatedOrdersResponse>(
-      `/orders/myorders?${queryString}`
+    return this.request<PaginatedReviewsResponse>(
+      "get",
+      `/reviews${queryString}`
     );
   };
 
-  /**
-   * Get user order statistics
-   */
-  getUserOrderStats = () =>
-    this.request<OrderStatsResponse>("/orders/user-stats");
-
-  /**
-   * Get all orders (Admin only)
-   */
-  getOrders = (params: OrdersParams = {}) => {
-    // APPLY THE FIX HERE
-    const queryString = this.createQueryString(params);
-    return this.request<PaginatedOrdersResponse>(`/orders?${queryString}`);
+  getReviewById = async (id: string): Promise<ReviewResponse> => {
+    return this.request<ReviewResponse>("get", `/reviews/${id}`);
   };
 
-  /**
-   * Search orders (Admin only)
-   */
-  searchOrders = (params: SearchOrdersParams) => {
-    // APPLY THE FIX HERE
-    const queryString = this.createQueryString(params);
-    return this.request<PaginatedOrdersResponse>(
-      `/orders/search?${queryString}`
-    );
-  };
+  createReview = async (data: CreateReviewData): Promise<ReviewResponse> => {
+    const requestData: Record<string, unknown> = {
+      product: data.product,
+      rating: data.rating,
+      comment: data.comment,
+    };
 
-  /**
-   * Get order analytics (Admin only)
-   */
-  getOrderAnalytics = () =>
-    this.request<OrderAnalyticsResponse>("/orders/analytics");
-
-  /**
-   * Export orders to CSV (Admin only)
-   */
-  exportOrders = async (params: OrdersParams = {}): Promise<Blob> => {
-    const queryString = new URLSearchParams(
-      params as Record<string, string>
-    ).toString();
-    const url = `${this.baseURL}/orders/export?${queryString}`;
-    const token =
-      typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
-
-    const response = await fetch(url, {
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-    });
-
-    if (!response.ok) {
-      const data = await response.json();
-      const error = new Error(
-        data.message || "Failed to export orders"
-      ) as ApiError;
-      error.status = response.status;
-      throw error;
+    if (data.title) {
+      requestData.title = data.title;
+    }
+    if (data.images && data.images.length > 0) {
+      requestData.images = data.images;
     }
 
-    return response.blob();
+    const body = this.createRequestBody(requestData, ["images"]);
+    return this.request<ReviewResponse>("post", "/reviews", body);
   };
 
-  /**
-   * Get single order by ID
-   */
-  getOrderById = (orderId: string) =>
-    this.request<OrderResponse>(`/orders/${orderId}`);
+  updateReview = async (
+    reviewId: string,
+    data: UpdateReviewData
+  ): Promise<ReviewResponse> => {
+    const requestData: Record<string, unknown> = {};
 
-  /**
-   * Update order to paid
-   */
-  updateOrderToPaid = (orderId: string, data: UpdateToPaidData) =>
-    this.request<OrderResponse>(`/orders/${orderId}/pay`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
+    if (data.rating !== undefined) requestData.rating = data.rating;
+    if (data.comment !== undefined) requestData.comment = data.comment;
+    if (data.title !== undefined) requestData.title = data.title;
+    if (data.images && data.images.length > 0) requestData.images = data.images;
 
-  /**
-   * Update order status (Admin only)
-   */
-  updateOrderStatus = (orderId: string, data: UpdateOrderStatusData) =>
-    this.request<OrderResponse>(`/orders/${orderId}/status`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
+    const body = this.createRequestBody(requestData, ["images"]);
+    return this.request<ReviewResponse>("put", `/reviews/${reviewId}`, body);
+  };
 
-  /**
-   * Mark order as delivered (Admin only)
-   */
-  updateOrderToDelivered = (orderId: string) =>
-    this.request<OrderResponse>(`/orders/${orderId}/deliver`, {
-      method: "PUT",
-    });
+  deleteReview = async (reviewId: string): Promise<void> => {
+    return this.request<void>("delete", `/reviews/${reviewId}`);
+  };
 
-  /**
-   * Add tracking information (Admin only)
-   */
-  addTrackingInfo = (orderId: string, data: AddTrackingInfoData) =>
-    this.request<OrderResponse>(`/orders/${orderId}/tracking`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
+  voteReviewHelpful = async (reviewId: string): Promise<VoteReviewResponse> => {
+    return this.request<VoteReviewResponse>(
+      "post",
+      `/reviews/${reviewId}/helpful`
+    );
+  };
 
-  /**
-   * Cancel order
-   */
-  cancelOrder = (orderId: string, data: CancelOrderData) =>
-    this.request<OrderResponse>(`/orders/${orderId}/cancel`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
+  getMyReviews = async (
+    params: ReviewsParams = {}
+  ): Promise<MyReviewsResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<MyReviewsResponse>(
+      "get",
+      `/reviews/my-reviews${queryString}`
+    );
+  };
+
+  getProductReviewStats = async (
+    productId: string
+  ): Promise<ReviewStatsResponse> => {
+    return this.request<ReviewStatsResponse>(
+      "get",
+      `/reviews/stats/${productId}`
+    );
+  };
+  // ==================== ORDER ENDPOINTS ====================
+
+  createOrder = async (data: CreateOrderData): Promise<OrderResponse> => {
+    return this.request<OrderResponse>("post", "/orders", data);
+  };
+
+  getMyOrders = async (
+    params: OrdersParams = {}
+  ): Promise<PaginatedOrdersResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<PaginatedOrdersResponse>(
+      "get",
+      `/orders/myorders${queryString}`
+    );
+  };
+
+  getUserOrderStats = async (): Promise<OrderStatsResponse> => {
+    return this.request<OrderStatsResponse>("get", "/orders/user-stats");
+  };
+
+  getOrders = async (
+    params: OrdersParams = {}
+  ): Promise<PaginatedOrdersResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<PaginatedOrdersResponse>(
+      "get",
+      `/orders${queryString}`
+    );
+  };
+
+  searchOrders = async (
+    params: SearchOrdersParams
+  ): Promise<PaginatedOrdersResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<PaginatedOrdersResponse>(
+      "get",
+      `/orders/search${queryString}`
+    );
+  };
+
+  getOrderAnalytics = async (): Promise<OrderAnalyticsResponse> => {
+    return this.request<OrderAnalyticsResponse>("get", "/orders/analytics");
+  };
+
+  exportOrders = async (params: OrdersParams = {}): Promise<Blob> => {
+    const queryString = this.createQueryString(params);
+    const response = await this.axiosInstance.get(
+      `/orders/export${queryString}`,
+      {
+        responseType: "blob",
+      }
+    );
+    return response.data;
+  };
+
+  getOrderById = async (orderId: string): Promise<OrderResponse> => {
+    return this.request<OrderResponse>("get", `/orders/${orderId}`);
+  };
+
+  updateOrderToPaid = async (
+    orderId: string,
+    data: UpdateToPaidData
+  ): Promise<OrderResponse> => {
+    return this.request<OrderResponse>("put", `/orders/${orderId}/pay`, data);
+  };
+
+  updateOrderStatus = async (
+    orderId: string,
+    data: UpdateOrderStatusData
+  ): Promise<OrderResponse> => {
+    return this.request<OrderResponse>(
+      "put",
+      `/orders/${orderId}/status`,
+      data
+    );
+  };
+
+  updateOrderToDelivered = async (
+    orderId: string,
+    data?: { note?: string }
+  ): Promise<OrderResponse> => {
+    return this.request<OrderResponse>(
+      "put",
+      `/orders/${orderId}/deliver`,
+      data
+    );
+  };
+
+  addTrackingInfo = async (
+    orderId: string,
+    data: AddTrackingInfoData
+  ): Promise<OrderResponse> => {
+    return this.request<OrderResponse>(
+      "put",
+      `/orders/${orderId}/tracking`,
+      data
+    );
+  };
+
+  cancelOrder = async (
+    orderId: string,
+    data: CancelOrderData
+  ): Promise<OrderResponse> => {
+    return this.request<OrderResponse>(
+      "put",
+      `/orders/${orderId}/cancel`,
+      data
+    );
+  };
 }
+
+// ==================== EXPORTS ====================
 
 export const apiClient = new ApiClient(API_BASE_URL);

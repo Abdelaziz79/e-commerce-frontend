@@ -1,17 +1,18 @@
 // components/admin/orders/AdminOrdersHeader.tsx
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 
 interface AdminOrdersHeaderProps {
   orderCount: number;
+  onExport: () => void;
+  isExporting: boolean;
 }
 
-export function AdminOrdersHeader({ orderCount }: AdminOrdersHeaderProps) {
-  // You would wire this up to the useExportOrders hook
-  const handleExport = () => {
-    alert("Export functionality to be implemented.");
-  };
-
+export function AdminOrdersHeader({
+  orderCount,
+  onExport,
+  isExporting,
+}: AdminOrdersHeaderProps) {
   return (
     <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
       <div>
@@ -20,9 +21,13 @@ export function AdminOrdersHeader({ orderCount }: AdminOrdersHeaderProps) {
           {orderCount.toLocaleString()} order(s) found
         </p>
       </div>
-      <Button variant="outline" onClick={handleExport}>
-        <Download className="mr-2 h-4 w-4" />
-        Export Orders
+      <Button variant="outline" onClick={onExport} disabled={isExporting}>
+        {isExporting ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <Download className="mr-2 h-4 w-4" />
+        )}
+        {isExporting ? "Exporting..." : "Export Orders"}
       </Button>
     </div>
   );

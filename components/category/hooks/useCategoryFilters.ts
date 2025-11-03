@@ -1,45 +1,84 @@
-// ===== hooks/useCategoryFilters.ts =====
-import { useMemo, useState } from "react";
-import type { Category } from "@/types/category";
+// components/category/hooks/useCategoryFilters.ts
 
-type FilterType = "all" | "active" | "inactive" | "parent" | "child";
+import { useState, useMemo, useCallback } from "react";
+import { CategoriesParams, CategorySearchParams } from "@/types/category";
+import { useDebounce } from "@/hooks/use-debounce";
+export type CategoryStatusFilter = "all" | "active" | "inactive";
 
-export function useCategoryFilters(categories: Category[]) {
+export function useCategoryFilters() {
+  const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterType, setFilterType] = useState<FilterType>("all");
+  const [sortOrder, setSortOrder] = useState("-createdAt");
+  const [statusFilter, setStatusFilter] = useState<CategoryStatusFilter>("all");
 
-  const filteredCategories = useMemo(() => {
-    return categories.filter((cat) => {
-      const matchesSearch = cat.name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-      const matchesFilter =
-        filterType === "all" ||
-        (filterType === "active" && cat.isActive) ||
-        (filterType === "inactive" && !cat.isActive) ||
-        (filterType === "parent" && !cat.parentCategory) ||
-        (filterType === "child" && cat.parentCategory);
+  // Debounce search query with custom hook
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
-      return matchesSearch && matchesFilter;
-    });
-  }, [categories, searchQuery, filterType]);
+  const handleSearchQueryChange = useCallback((query: string) => {
+    setSearchQuery(query);
+    setPage(1); // Reset to first page when searching
+  }, []);
 
-  const stats = useMemo(() => {
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const handleSortChange = useCallback((order: string) => {
+    setSortOrder(order);
+    setPage(1);
+  }, []);
+
+  const handleStatusChange = useCallback((status: CategoryStatusFilter) => {
+    setStatusFilter(status);
+    setPage(1);
+  }, []);
+
+  // Determine if we should use search or regular query
+  const isSearchMode = debouncedSearchQuery.trim().length > 0;
+
+  // Build search params
+  const searchParams: CategorySearchParams | null = useMemo(() => {
+    if (!isSearchMode) return null;
+
     return {
-      total: categories.length,
-      active: categories.filter((c) => c.isActive).length,
-      inactive: categories.filter((c) => !c.isActive).length,
-      parent: categories.filter((c) => !c.parentCategory).length,
-      child: categories.filter((c) => c.parentCategory).length,
+      q: debouncedSearchQuery,
+      page,
+      limit: 12,
+      sort: sortOrder,
     };
-  }, [categories]);
+  }, [debouncedSearchQuery, page, sortOrder, isSearchMode]);
+
+  // Build regular query params
+  const queryParams: CategoriesParams = useMemo(() => {
+    const params: CategoriesParams = {
+      page,
+      limit: 12,
+      sort: sortOrder,
+    };
+
+    // Add status filter to regular queries
+    if (statusFilter === "active") {
+      params.isActive = true;
+    } else if (statusFilter === "inactive") {
+      params.isActive = false;
+    }
+
+    return params;
+  }, [page, sortOrder, statusFilter]);
 
   return {
+    page,
     searchQuery,
-    setSearchQuery,
-    filterType,
-    setFilterType,
-    filteredCategories,
-    stats,
+    debouncedSearchQuery,
+    sortOrder,
+    statusFilter,
+    isSearchMode,
+    searchParams,
+    queryParams,
+    handlePageChange,
+    setSearchQuery: handleSearchQueryChange,
+    handleSortChange,
+    handleStatusChange,
   };
 }

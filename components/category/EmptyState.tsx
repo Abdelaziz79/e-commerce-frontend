@@ -1,20 +1,15 @@
-// ===== components/EmptyState.tsx =====
-import { FolderTree, Plus } from "lucide-react";
+// ===== components/category/EmptyState.tsx =====
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { FolderTree, Plus } from "lucide-react";
 
 interface EmptyStateProps {
   searchQuery: string;
-  filterType: string;
   onAddCategory: () => void;
 }
 
-export function EmptyState({
-  searchQuery,
-  filterType,
-  onAddCategory,
-}: EmptyStateProps) {
-  const hasFilters = searchQuery || filterType !== "all";
+export function EmptyState({ searchQuery, onAddCategory }: EmptyStateProps) {
+  const hasSearch = !!searchQuery;
 
   return (
     <Card className="p-12 text-center border-0 bg-muted/50">
@@ -27,16 +22,16 @@ export function EmptyState({
 
         <div className="space-y-2">
           <h3 className="text-lg font-semibold">
-            {hasFilters ? "No categories found" : "No categories yet"}
+            {hasSearch ? "No Categories found" : "No Categories yet"}
           </h3>
           <p className="text-sm text-muted-foreground">
-            {hasFilters
-              ? "Try adjusting your search or filters"
+            {hasSearch
+              ? "Try adjusting your search"
               : "Get started by creating your first category"}
           </p>
         </div>
 
-        {!hasFilters && (
+        {!hasSearch && (
           <Button onClick={onAddCategory} className="mt-2">
             <Plus className="h-4 w-4 mr-2" />
             Create Category

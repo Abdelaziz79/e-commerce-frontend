@@ -16,36 +16,52 @@ export default function OrderDetailsPage() {
   const [isCancelDialogOpen, setCancelDialogOpen] = useState(false);
 
   // Fetch the specific order using its ID
-  const { data, isLoading, error } = useOrder(orderId);
+  const { data, isLoading, error, refetch } = useOrder(orderId);
   const cancelOrderMutation = useCancelOrder();
 
   const handleConfirmCancel = async (reason: string) => {
+    if (!orderId) return;
+
     cancelOrderMutation.mutate(
-      { orderId, data: { reason } },
+      {
+        orderId,
+        data: { reason: reason.trim() || undefined },
+      },
       {
         onSuccess: () => {
-          setCancelDialogOpen(false); // Close dialog on success
+          setCancelDialogOpen(false);
+          // Refetch to get updated order data
+          refetch();
         },
       }
     );
   };
 
+  // Loading state
   if (isLoading) {
-    return <LoadingDisplay />;
-  }
-
-  if (error || !data?.data) {
     return (
-      <ErrorDisplay
-        message={
-          error?.message ||
-          "Order not found. Please check the ID and try again."
-        }
-      />
+      <div className="container mx-auto max-w-7xl px-4 py-8">
+        <LoadingDisplay />
+      </div>
     );
   }
 
-  const order = data.data;
+  // Error state or no data
+  if (error || !data?.data?.order) {
+    return (
+      <div className="container mx-auto max-w-7xl px-4 py-8">
+        <ErrorDisplay
+          message={
+            error?.message ||
+            "Order not found. Please check the order number and try again."
+          }
+        />
+      </div>
+    );
+  }
+
+  // Extract the order from the nested response structure
+  const order = data.data.order;
 
   return (
     <>

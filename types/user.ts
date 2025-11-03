@@ -4,6 +4,21 @@ import { CartItem } from "./cart";
 import { FavoriteProduct } from "./favorite";
 import { OrderHistoryReference } from "./order";
 
+export interface AvatarUploadResponse {
+  status: string;
+  message: string;
+  data: {
+    avatar: string;
+  };
+}
+
+export interface AvatarDeleteResponse {
+  status: string;
+  message: string;
+  data: {
+    avatar: string;
+  };
+}
 export interface Address {
   _id?: string;
   address: string;
@@ -18,6 +33,7 @@ export interface UserProfile {
   name: string;
   email: string;
   role: string;
+  avatar: string; // Add this field
   isEmailVerified: boolean;
   phone?: string;
   cart: CartItem[];
@@ -56,6 +72,7 @@ export interface UserUpdateResponse {
     name: string;
     email: string;
     role: string;
+    avatar: string; // Add this field
     isEmailVerified: boolean;
     phone?: string;
     token: string;

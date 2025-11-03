@@ -1,3 +1,4 @@
+// ================================================
 // components/orders/order-page/OrderSummaryCard.tsx
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -21,21 +22,20 @@ export function OrderSummaryCard({ order }: OrderSummaryCardProps) {
         <CardTitle>Order Summary</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <SummaryLine
-          label="Subtotal"
-          value={`$${order.itemsPrice.toFixed(2)}`}
-        />
+        <SummaryLine label="Subtotal" value={`$${order.subtotal.toFixed(2)}`} />
+        {order.discountAmount > 0 && (
+          <SummaryLine
+            label={`Discount ${
+              order.discount?.code ? `(${order.discount.code})` : ""
+            }`}
+            value={`-$${order.discountAmount.toFixed(2)}`}
+          />
+        )}
         <SummaryLine
           label="Shipping"
           value={`$${order.shippingPrice.toFixed(2)}`}
         />
-        <SummaryLine label="Taxes" value={`$${order.taxPrice.toFixed(2)}`} />
-        {order.discountAmount > 0 && (
-          <SummaryLine
-            label={`Discount (${order.discount?.code})`}
-            value={`-$${order.discountAmount.toFixed(2)}`}
-          />
-        )}
+        <SummaryLine label="Tax" value={`$${order.taxPrice.toFixed(2)}`} />
         <Separator />
         <div className="flex justify-between font-semibold text-base">
           <span>Order Total</span>

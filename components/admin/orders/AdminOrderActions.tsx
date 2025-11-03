@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatOrderStatus } from "@/hooks/use-orders";
 import { Order, OrderStatus } from "@/types/order";
 import { Loader2, Save, Truck } from "lucide-react";
 import { useState } from "react";
@@ -27,6 +28,8 @@ const statusOptions: OrderStatus[] = [
   "completed",
   "on-hold",
   "cancelled",
+  "refunded",
+  "failed",
 ];
 
 export function AdminOrderActions({
@@ -40,6 +43,12 @@ export function AdminOrderActions({
   );
 
   const canUpdate = selectedStatus !== order.status;
+
+  const handleUpdate = () => {
+    if (canUpdate) {
+      onStatusChange(selectedStatus);
+    }
+  };
 
   return (
     <Card>
@@ -55,24 +64,21 @@ export function AdminOrderActions({
             <Select
               value={selectedStatus}
               onValueChange={(v: OrderStatus) => setSelectedStatus(v)}
+              disabled={isUpdatingStatus}
             >
               <SelectTrigger id="status">
                 <SelectValue placeholder="Select a status" />
               </SelectTrigger>
               <SelectContent>
                 {statusOptions.map((status) => (
-                  <SelectItem
-                    key={status}
-                    value={status}
-                    className="capitalize"
-                  >
-                    {status}
+                  <SelectItem key={status} value={status}>
+                    {formatOrderStatus(status)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Button
-              onClick={() => onStatusChange(selectedStatus)}
+              onClick={handleUpdate}
               disabled={!canUpdate || isUpdatingStatus}
               size="icon"
             >
@@ -81,12 +87,20 @@ export function AdminOrderActions({
               ) : (
                 <Save className="h-4 w-4" />
               )}
+              <span className="sr-only">Save status</span>
             </Button>
           </div>
         </div>
-        <Button variant="outline" className="w-full" onClick={onAddTracking}>
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={onAddTracking}
+          disabled={isUpdatingStatus}
+        >
           <Truck className="mr-2 h-4 w-4" />
-          Add/Edit Tracking Info
+          {order.shipping?.trackingNumber
+            ? "Edit Tracking Info"
+            : "Add Tracking Info"}
         </Button>
       </CardContent>
     </Card>

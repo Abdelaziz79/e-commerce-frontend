@@ -4,6 +4,7 @@ export interface User {
   name: string;
   email: string;
   role: string;
+  avatar: string;
   isEmailVerified: boolean;
 }
 
@@ -52,6 +53,7 @@ export interface ValidationErrorResponse {
 export interface ApiErrorResponse {
   message: string;
   stack?: string;
+  code?: string;
 }
 
 export interface ApiError extends Error {

@@ -1,3 +1,4 @@
+// types/order.ts
 export interface OrderHistoryReference {
   order: string;
   totalPrice: number;
@@ -152,12 +153,16 @@ export interface CreateOrderData {
 export interface UpdateOrderStatusData {
   status: OrderStatus;
   note?: string;
-  carrier?: string;
-  trackingNumber?: string;
-  estimatedDeliveryDate?: string;
-  refundAmount?: number;
-  refundReason?: string;
   adminNotes?: string;
+  shippingInfo?: {
+    carrier?: string;
+    trackingNumber?: string;
+    estimatedDeliveryDate?: string;
+  };
+  refund?: {
+    amount: number;
+    reason: string;
+  };
 }
 
 export interface AddTrackingInfoData {
@@ -173,8 +178,8 @@ export interface CancelOrderData {
 export interface UpdateToPaidData {
   id: string;
   status: string;
-  update_time: string;
-  email_address: string;
+  update_time?: string;
+  email_address?: string;
   payment_method?: string;
   transaction_fee?: number;
 }
@@ -182,9 +187,7 @@ export interface UpdateToPaidData {
 // ============ QUERY PARAMS ============
 
 export interface OrdersParams {
-  // ADD THIS LINE: It tells TypeScript this object can have any string key
-  [key: string]: string | number | OrderStatus | undefined;
-
+  [key: string]: string | number | OrderStatus | boolean | undefined;
   page?: string | number;
   limit?: string | number;
   sort?: string;
@@ -192,22 +195,26 @@ export interface OrdersParams {
   user?: string;
   startDate?: string;
   endDate?: string;
+  isPaid?: boolean;
+  isDelivered?: boolean;
+  keyword?: string;
 }
 
 export interface SearchOrdersParams {
-  // ADD THIS LINE: It tells TypeScript this object can have any string key
   [key: string]: string | number | undefined;
-
-  query: string;
+  q: string;
   page?: string | number;
   limit?: string | number;
 }
+
 // ============ RESPONSE TYPES ============
 
 export interface OrderResponse {
   status: string;
   message?: string;
-  data: Order;
+  data: {
+    order: Order;
+  };
 }
 
 export interface PaginatedOrdersResponse {
@@ -242,10 +249,13 @@ export interface OrderStatsResponse {
     totalOrders: number;
     totalSpent: number;
     averageOrderValue: number;
-    ordersByStatus: {
-      status: OrderStatus;
-      count: number;
-    }[];
+    completedOrders: number;
+    cancelledOrders: number;
+    pendingOrders: number;
+    processingOrders: number;
+    shippedOrders: number;
+    paidOrdersCount: number;
+    statusCounts: Record<OrderStatus, number>;
     recentOrders: Order[];
   };
 }
@@ -253,35 +263,36 @@ export interface OrderStatsResponse {
 export interface OrderAnalyticsResponse {
   status: string;
   data: {
-    totalRevenue: number;
-    totalOrders: number;
-    averageOrderValue: number;
-    ordersByStatus: {
-      status: OrderStatus;
-      count: number;
-      percentage: number;
-    }[];
-    revenueByMonth: {
-      month: string;
+    overview: {
+      totalOrders: number;
+      totalRevenue: number;
+      recentOrdersCount: number;
+    };
+    statusDistribution: Record<OrderStatus, number>;
+    last24Hours: {
+      orders: number;
+      revenue: number;
+    };
+    last30Days: {
+      orders: number;
+      revenue: number;
+      averageOrderValue: number;
+    };
+    monthlyRevenue: {
+      _id: {
+        year: number;
+        month: number;
+      };
       revenue: number;
       orders: number;
+      averageOrderValue: number;
     }[];
     topProducts: {
-      product: {
-        _id: string;
-        name: string;
-      };
-      totalSold: number;
+      _id: string;
+      totalQuantity: number;
       totalRevenue: number;
-    }[];
-    topCustomers: {
-      user: {
-        _id: string;
-        name: string;
-        email: string;
-      };
-      totalOrders: number;
-      totalSpent: number;
+      orderCount: number;
+      productName: string;
     }[];
   };
 }

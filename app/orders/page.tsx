@@ -10,7 +10,7 @@ import { OrdersPagination } from "@/components/orders/OrdersPagination";
 import { OrdersSkeleton } from "@/components/orders/OrdersSkeleton";
 import { useCancelOrder, useMyOrders } from "@/hooks/use-orders";
 import { Order, OrderStatus } from "@/types/order";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export default function UserOrdersPage() {
   // State management
@@ -19,27 +19,40 @@ export default function UserOrdersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
 
-  // Data fetching
-  const { data, isLoading, error } = useMyOrders({
+  // Data fetching - IMPORTANT: Don't filter on client if backend supports it
+  // Backend search uses keyword parameter, not client-side filtering
+  const { data, isLoading, error, refetch } = useMyOrders({
     page,
-    limit: 10, // Or your preferred limit
+    limit: 10,
     status: statusFilter === "all" ? undefined : statusFilter,
+    // If backend supports keyword search, pass it here:
+    // keyword: searchQuery || undefined,
   });
 
   const cancelOrderMutation = useCancelOrder();
 
-  // Memoized filtering of orders based on search query
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, searchQuery]);
+
+  // Client-side filtering (only if backend doesn't support keyword search)
+  // If your backend supports keyword search, remove this and pass keyword to useMyOrders
   const filteredOrders = useMemo(() => {
     const orders = data?.data?.orders || [];
-    if (!searchQuery) {
+    if (!searchQuery.trim()) {
       return orders;
     }
+
+    const query = searchQuery.toLowerCase().trim();
     return orders.filter(
       (order) =>
-        order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.orderNumber.toLowerCase().includes(query) ||
         order.orderItems.some((item) =>
-          item.name.toLowerCase().includes(searchQuery.toLowerCase())
-        )
+          item.name.toLowerCase().includes(query)
+        ) ||
+        order.shippingAddress.address.toLowerCase().includes(query) ||
+        order.shippingAddress.city.toLowerCase().includes(query)
     );
   }, [data?.data?.orders, searchQuery]);
 
@@ -47,41 +60,58 @@ export default function UserOrdersPage() {
   const handleCancelOrder = async (reason: string) => {
     if (!orderToCancel) return;
 
-    await cancelOrderMutation.mutateAsync(
+    cancelOrderMutation.mutate(
       {
         orderId: orderToCancel._id,
-        data: { reason },
+        data: { reason: reason.trim() || undefined },
       },
       {
         onSuccess: () => {
-          setOrderToCancel(null); // Close the dialog on success
+          setOrderToCancel(null);
+          // Refetch to get updated data
+          refetch();
         },
       }
     );
   };
 
+  // Handle page change
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Error state
   if (error) {
     return (
-      <ErrorDisplay
-        message={
-          error.message || "Failed to load your orders. Please try again."
-        }
-      />
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <OrdersHeader />
+        <ErrorDisplay
+          message={
+            error.message || "Failed to load your orders. Please try again."
+          }
+        />
+      </div>
     );
   }
 
   const pagination = data?.data?.pagination;
+  const hasOrders = (data?.data?.orders?.length ?? 0) > 0;
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <OrdersHeader />
 
-      <OrderFilters
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
-      />
+      {/* Only show filters if there are orders or if filters are active */}
+      {(hasOrders || statusFilter !== "all" || searchQuery) && (
+        <OrderFilters
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          statusFilter={statusFilter}
+          onStatusChange={setStatusFilter}
+        />
+      )}
 
       {isLoading ? (
         <OrdersSkeleton />
@@ -93,11 +123,12 @@ export default function UserOrdersPage() {
         />
       )}
 
+      {/* Show pagination only if there are multiple pages and not loading */}
       {pagination && pagination.totalPages > 1 && !isLoading && (
         <OrdersPagination
           currentPage={pagination.page}
           totalPages={pagination.totalPages}
-          onPageChange={setPage}
+          onPageChange={handlePageChange}
         />
       )}
 

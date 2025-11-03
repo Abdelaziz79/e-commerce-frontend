@@ -70,7 +70,24 @@ export interface ProductsParams {
   keyword?: string;
   category?: string; // This will be the category ID
   brand?: string; // This will be the brand ID
+  minPrice?: number;
+  maxPrice?: number;
+  featured?: boolean;
+  onSale?: boolean;
+  inStock?: boolean;
   [key: string]: string | number | boolean | undefined;
+}
+
+export interface SearchProductsParams {
+  q: string;
+  limit?: number;
+  page?: number;
+  [key: string]: string | number | undefined;
+}
+
+export interface LowStockParams {
+  threshold?: number;
+  [key: string]: string | number | undefined;
 }
 
 export interface CreateProductData {
@@ -80,8 +97,8 @@ export interface CreateProductData {
   category: string; // ID of the category
   brand: string; // ID of the brand
   countInStock?: number;
-  images?: string[];
-  mainImage?: string;
+  images?: File[] | string[]; // Support both File upload and URLs
+  mainImage?: File | string;
   richDescription?: string;
   hasVariations?: boolean;
   variations?: ProductVariation[];
@@ -101,6 +118,59 @@ export interface CreateProductData {
 
 export type UpdateProductData = Partial<CreateProductData>;
 
+// --- BULK OPERATIONS ---
+
+export interface BulkUpdateData {
+  productIds: string[];
+  updates: Partial<Product>;
+}
+
+export interface BulkDeleteData {
+  productIds: string[];
+}
+
+export interface BulkOperationResponse {
+  status: string;
+  message: string;
+  data?: {
+    modifiedCount?: number;
+    deletedCount?: number;
+  };
+}
+
+// --- STOCK MANAGEMENT ---
+
+export interface StockAdjustmentData {
+  adjustment: number;
+  reason?: string;
+}
+
+// --- PRODUCT STATISTICS ---
+
+export interface ProductStats {
+  totalProducts: Array<{ count: number }>;
+  totalValue: Array<{ _id: null; total: number }>;
+  averagePrice: Array<{ _id: null; avg: number }>;
+  outOfStock: Array<{ count: number }>;
+  featured: Array<{ count: number }>;
+  onSale: Array<{ count: number }>;
+  byCategory: Array<{
+    _id: string;
+    count: number;
+    categoryInfo: Category[];
+  }>;
+  byBrand: Array<{
+    _id: string;
+    count: number;
+    brandInfo: Brand[];
+  }>;
+}
+
+export interface ProductStatsResponse {
+  status: string;
+  data: ProductStats;
+}
+
 // --- API RESPONSE TYPES ---
 
 export interface PaginatedProductsResponse {
@@ -115,6 +185,7 @@ export interface PaginatedProductsResponse {
 export interface ProductResponse {
   status: string;
   data: Product;
+  message?: string;
 }
 
 export interface ProductListResponse {

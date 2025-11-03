@@ -149,7 +149,7 @@ export function useSearchOrders(params: SearchOrdersParams) {
   return useQuery({
     queryKey: ORDER_KEYS.search(params),
     queryFn: () => apiClient.searchOrders(params),
-    enabled: !!token && isAdmin && !!params.query,
+    enabled: !!token && isAdmin && !!params.q,
     staleTime: 1000 * 30, // 30 seconds
     gcTime: 1000 * 60 * 5, // 5 minutes
   });
@@ -166,7 +166,6 @@ export function useCreateOrder() {
   return useMutation({
     mutationFn: (data: CreateOrderData) => apiClient.createOrder(data),
     onSuccess: (response) => {
-      // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ORDER_KEYS.myOrders() });
       queryClient.invalidateQueries({ queryKey: ORDER_KEYS.userStats() });
       queryClient.invalidateQueries({ queryKey: ["cart"] });
@@ -200,12 +199,12 @@ export function useUpdateOrderToPaid() {
       data: UpdateToPaidData;
     }) => apiClient.updateOrderToPaid(orderId, data),
     onSuccess: (response, variables) => {
-      // Invalidate specific order and lists
       queryClient.invalidateQueries({
         queryKey: ORDER_KEYS.detail(variables.orderId),
       });
       queryClient.invalidateQueries({ queryKey: ORDER_KEYS.myOrders() });
       queryClient.invalidateQueries({ queryKey: ORDER_KEYS.userStats() });
+      queryClient.invalidateQueries({ queryKey: ORDER_KEYS.lists() });
 
       toast.success(response.message || "Payment confirmed successfully!");
     },
@@ -263,9 +262,12 @@ export function useUpdateOrderToDelivered() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (orderId: string) => apiClient.updateOrderToDelivered(orderId),
-    onSuccess: (response, orderId) => {
-      queryClient.invalidateQueries({ queryKey: ORDER_KEYS.detail(orderId) });
+    mutationFn: ({ orderId, note }: { orderId: string; note?: string }) =>
+      apiClient.updateOrderToDelivered(orderId, note ? { note } : undefined),
+    onSuccess: (response, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ORDER_KEYS.detail(variables.orderId),
+      });
       queryClient.invalidateQueries({ queryKey: ORDER_KEYS.lists() });
       queryClient.invalidateQueries({ queryKey: ORDER_KEYS.analytics() });
 
@@ -357,7 +359,6 @@ export function useExportOrders() {
   return useMutation({
     mutationFn: (params: OrdersParams = {}) => apiClient.exportOrders(params),
     onSuccess: (blob) => {
-      // Create a download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -422,4 +423,38 @@ export function useOrderStatusColor(status: string) {
   };
 
   return statusColors[status] || "text-gray-600 bg-gray-50";
+}
+
+/**
+ * Format order status for display
+ */
+export function formatOrderStatus(status: string): string {
+  return status
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+/**
+ * Get status badge variant
+ */
+export function getStatusBadgeVariant(
+  status: string
+): "default" | "secondary" | "destructive" | "outline" {
+  const variants: Record<
+    string,
+    "default" | "secondary" | "destructive" | "outline"
+  > = {
+    pending: "secondary",
+    processing: "default",
+    shipped: "default",
+    delivered: "default",
+    cancelled: "destructive",
+    refunded: "destructive",
+    "on-hold": "secondary",
+    failed: "destructive",
+    completed: "default",
+  };
+
+  return variants[status] || "outline";
 }

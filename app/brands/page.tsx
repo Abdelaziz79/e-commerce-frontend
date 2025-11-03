@@ -21,6 +21,10 @@ import {
 } from "lucide-react";
 import { Brand } from "@/types/brand";
 
+// Define the base URL for images, falling back to localhost if not set
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL_IMAGES || "http://localhost:5000";
+
 export default function BrandsPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -130,14 +134,22 @@ export default function BrandsPage() {
 
 // Brand Card Component
 function BrandCard({ brand }: { brand: Brand }) {
+  // Construct the full logo URL. If brand.logo is already a full URL, use it directly.
+  // Otherwise, prepend the API base URL.
+  const logoUrl = brand.logo
+    ? brand.logo.startsWith("http")
+      ? brand.logo
+      : `${API_BASE_URL}${brand.logo}`
+    : "";
+
   return (
     <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 border-muted hover:border-primary/50 pt-0">
       <Link href={`/brands/${brand.slug}`}>
         <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-background to-muted/50 flex items-center justify-center p-8">
-          {brand.logo ? (
+          {logoUrl ? (
             <div className="relative w-full h-full">
               <Image
-                src={brand.logo}
+                src={logoUrl}
                 alt={brand.name}
                 fill
                 className="object-contain group-hover:scale-110 transition-transform duration-500 p-4"

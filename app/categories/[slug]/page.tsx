@@ -3,7 +3,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -30,23 +30,33 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
+// Define the base URL for images
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL_IMAGES || "http://localhost:5000";
+
 export default function CategoryPage() {
   const params = useParams();
   const slug = params.slug as string;
 
-  const [sortBy, setSortBy] = useState("featured");
+  const [sortBy, setSortBy] = useState("-createdAt");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Fetch all categories to find the one with matching slug
-  const { data: categoriesData, isLoading: categoriesLoading } =
-    useCategories();
+  // Step 1: Fetch all categories to reliably find the one matching the slug.
+  // A high limit ensures we get all of them, fixing the "not found" bug for items on later pages.
+  const { data: categoriesData, isLoading: categoriesLoading } = useCategories({
+    limit: 1000,
+  });
 
-  // Find category by slug
+  // Step 2: Find the category on the client side from the complete list.
+  // This will be `undefined` until `categoriesData` is available.
   const category = categoriesData?.data?.categories?.find(
     (cat: Category) => cat.slug === slug
   );
 
-  // Fetch products for this category
+  // Step 3: Fetch products for this category.
+  // CRITICAL FIX: The `enabled: !!category?._id` option tells react-query
+  // to WAIT until `category` is found and we have an ID.
+  // This prevents the `GET /api/v1/products?category=undefined` request that causes the 500 error.
   const { data: productsData, isLoading: productsLoading } = useProducts({
     category: category?._id,
     page: currentPage,
@@ -54,27 +64,42 @@ export default function CategoryPage() {
     sort: sortBy,
   });
 
-  const isLoading = categoriesLoading || productsLoading;
-  const products = productsData?.data || [];
-  const totalPages = productsData?.pages || 1;
+  // Step 4: A combined loading state that mirrors the logic from your working BrandPage.
+  // We are "loading" if the category list is loading, OR if we have found the category
+  // and are now waiting for its products to load.
+  const isLoading = categoriesLoading || (!!category && productsLoading);
 
-  if (categoriesLoading || isLoading) {
+  // Step 5: Show the main page skeleton ONLY while fetching the category list.
+  // This ensures we don't flash the "Not Found" page prematurely.
+  if (categoriesLoading) {
     return <CategoryPageSkeleton />;
   }
 
+  // Step 6: After we're done fetching categories, if no category was found, show the "Not Found" page.
+  // This is now accurate because we have searched the *entire* list.
   if (!category) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <h1 className="text-3xl font-bold mb-4">Category Not Found</h1>
         <p className="text-muted-foreground mb-8">
-          The category you&apos;re looking for doesn&apos;t exist.
+          The category you&apos;re looking for either doesn&apos;t exist or is
+          not currently active.
         </p>
         <Button asChild>
-          <Link href="/">Go to Home</Link>
+          <Link href="/categories">Browse All Categories</Link>
         </Button>
       </div>
     );
   }
+
+  const products = productsData?.data || [];
+  const totalPages = productsData?.pages || 1;
+
+  const imageUrl = category.image
+    ? category.image.startsWith("http")
+      ? category.image
+      : `${API_BASE_URL}${category.image}`
+    : "";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -103,10 +128,10 @@ export default function CategoryPage() {
         <div className="absolute inset-0 bg-grid-white/10" />
         <div className="container mx-auto px-4 py-12 relative">
           <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
-            {category.image && (
-              <div className="relative w-32 h-32 rounded-2xl overflow-hidden shadow-lg ring-4 ring-background">
+            {imageUrl && (
+              <div className="relative w-32 h-32 rounded-2xl overflow-hidden shadow-lg ring-4 ring-background bg-background">
                 <Image
-                  src={category.image}
+                  src={imageUrl}
                   alt={category.name}
                   fill
                   className="object-cover"
@@ -150,7 +175,6 @@ export default function CategoryPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="featured">Featured</SelectItem>
                   <SelectItem value="-createdAt">Newest</SelectItem>
                   <SelectItem value="price">Price: Low to High</SelectItem>
                   <SelectItem value="-price">Price: High to Low</SelectItem>
@@ -165,7 +189,7 @@ export default function CategoryPage() {
 
       {/* Products Grid */}
       <div className="container mx-auto px-4 py-12">
-        {productsLoading ? (
+        {isLoading ? ( // Use the combined loading state here
           <ProductsGridSkeleton />
         ) : products.length === 0 ? (
           <div className="text-center py-16">
@@ -204,9 +228,9 @@ export default function CategoryPage() {
                       <Button
                         key={page}
                         variant={currentPage === page ? "default" : "ghost"}
-                        size="sm"
+                        size="icon"
                         onClick={() => setCurrentPage(page)}
-                        className="w-10"
+                        className="w-9 h-9"
                       >
                         {page}
                       </Button>
@@ -240,12 +264,17 @@ function ProductCard({ product }: { product: Product }) {
       ? Math.round(((product.price - product.salePrice) / product.price) * 100)
       : 0;
 
+  const mainImageUrl = product.mainImage || product.images[0];
+  const fullImageUrl = mainImageUrl.startsWith("http")
+    ? mainImageUrl
+    : `${API_BASE_URL}${mainImageUrl}`;
+
   return (
     <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 border-muted">
-      <Link href={`/products/${product._id}`}>
+      <Link href={`/products/${product.slug}`}>
         <div className="relative aspect-square overflow-hidden bg-muted">
           <Image
-            src={product.mainImage || product.images[0]}
+            src={fullImageUrl}
             alt={product.name}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-300"
@@ -255,23 +284,13 @@ function ProductCard({ product }: { product: Product }) {
               -{discount}%
             </Badge>
           )}
-          {product.featured && (
-            <Badge className="absolute top-3 right-3 bg-primary hover:bg-primary">
-              Featured
-            </Badge>
-          )}
-          {product.isNewProduct && (
-            <Badge className="absolute top-12 right-3 bg-green-600 hover:bg-green-600">
-              New
-            </Badge>
-          )}
           <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
             <div className="flex gap-2">
               <Button size="sm" className="flex-1" variant="secondary">
                 <ShoppingCart className="h-4 w-4 mr-2" />
                 Add to Cart
               </Button>
-              <Button size="sm" variant="secondary">
+              <Button size="icon" variant="secondary">
                 <Heart className="h-4 w-4" />
               </Button>
             </div>
@@ -280,7 +299,7 @@ function ProductCard({ product }: { product: Product }) {
       </Link>
       <CardContent className="p-4">
         <Link
-          href={`/products/${product._id}`}
+          href={`/products/${product.slug}`}
           className="hover:text-primary transition-colors"
         >
           <h3 className="font-semibold text-lg mb-2 line-clamp-2">
@@ -317,15 +336,6 @@ function ProductCard({ product }: { product: Product }) {
           )}
         </div>
       </CardContent>
-      <CardFooter className="p-4 pt-0 text-xs text-muted-foreground">
-        {product.countInStock > 0 ? (
-          <span className="text-green-600">
-            In Stock ({product.countInStock})
-          </span>
-        ) : (
-          <span className="text-destructive">Out of Stock</span>
-        )}
-      </CardFooter>
     </Card>
   );
 }
@@ -334,19 +344,32 @@ function ProductCard({ product }: { product: Product }) {
 function CategoryPageSkeleton() {
   return (
     <div className="min-h-screen">
-      <div className="container mx-auto px-4 py-4">
-        <Skeleton className="h-6 w-64" />
+      <div className="border-b">
+        <div className="container mx-auto px-4 py-4">
+          <Skeleton className="h-5 w-48" />
+        </div>
       </div>
       <div className="container mx-auto px-4 py-12">
-        <div className="flex gap-8 items-center mb-12">
-          <Skeleton className="w-32 h-32 rounded-2xl" />
-          <div className="flex-1">
-            <Skeleton className="h-12 w-64 mb-4" />
-            <Skeleton className="h-6 w-96" />
+        <div className="flex flex-col md:flex-row gap-8 items-start md:items-center mb-12">
+          <Skeleton className="w-32 h-32 rounded-2xl shrink-0" />
+          <div className="flex-1 space-y-4">
+            <Skeleton className="h-12 w-3/4" />
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-1/2" />
           </div>
         </div>
       </div>
-      <ProductsGridSkeleton />
+      <div className="border-b">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-9 w-44" />
+          </div>
+        </div>
+      </div>
+      <div className="container mx-auto px-4 py-12">
+        <ProductsGridSkeleton />
+      </div>
     </div>
   );
 }
@@ -357,9 +380,9 @@ function ProductsGridSkeleton() {
       {Array.from({ length: 8 }).map((_, i) => (
         <Card key={i} className="overflow-hidden">
           <Skeleton className="aspect-square" />
-          <CardContent className="p-4">
-            <Skeleton className="h-6 w-full mb-2" />
-            <Skeleton className="h-4 w-24 mb-2" />
+          <CardContent className="p-4 space-y-3">
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-4 w-24" />
             <Skeleton className="h-8 w-32" />
           </CardContent>
         </Card>

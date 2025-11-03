@@ -1,17 +1,18 @@
-// ===== components/brand/hooks/useBrandModal.ts =====
+// components/brand/hooks/useBrandModal.ts
 import { useState } from "react";
 import {
   useCreateBrand,
   useUpdateBrand,
   useDeleteBrand,
 } from "@/hooks/use-brand-hooks";
-import type { Brand, CreateBrandData } from "@/types/brand";
+import type { Brand, CreateBrandData, UpdateBrandData } from "@/types/brand";
 
 const initialFormData: CreateBrandData = {
   name: "",
   description: "",
   logo: "",
   website: "",
+  isActive: true,
 };
 
 export function useBrandModal() {
@@ -31,6 +32,7 @@ export function useBrandModal() {
         description: brand.description || "",
         logo: brand.logo || "",
         website: brand.website || "",
+        isActive: brand.isActive,
       });
     } else {
       setEditingBrand(null);
@@ -49,13 +51,31 @@ export function useBrandModal() {
     e.preventDefault();
 
     try {
+      // Create a new object that will only contain the valid data to be sent.
+      // This approach is fully type-safe and avoids using 'any'.
+      const dataToSend: UpdateBrandData = {};
+
+      // Iterate over the keys of the form data in a type-safe way.
+      for (const key in formData) {
+        const typedKey = key as keyof CreateBrandData;
+        const value = formData[typedKey];
+
+        // Add the value to the payload if it's not empty, null, or undefined.
+        // We make an exception for the 'isActive' boolean, which should always be included.
+        if (value !== "" && value !== undefined && value !== null) {
+          // TypeScript understands this assignment is valid because `dataToSend` is a
+          // partial and the key/value pairs are derived directly from CreateBrandData.
+          (dataToSend[typedKey] as typeof value) = value;
+        }
+      }
+
       if (editingBrand) {
         await updateBrand.mutateAsync({
           brandId: editingBrand._id,
-          data: formData,
+          data: dataToSend,
         });
       } else {
-        await createBrand.mutateAsync(formData);
+        await createBrand.mutateAsync(dataToSend as CreateBrandData);
       }
       handleCloseModal();
     } catch (error) {

@@ -4,7 +4,7 @@ import { OrderStatusTimeline } from "@/components/orders/order-page/OrderStatusT
 import { OrderSummaryCard } from "@/components/orders/order-page/OrderSummaryCard";
 import { Order, OrderStatus } from "@/types/order";
 import { AdminOrderActions } from "./AdminOrderActions";
-import { AdminOrderHeader } from "./AdminOrderHeader";
+import { AdminOrderDetailsHeader } from "./AdminOrderDetailsHeader";
 import { CustomerInfoCard } from "./CustomerInfoCard";
 import { ShippingInfoCard } from "./ShippingInfoCard";
 
@@ -23,7 +23,7 @@ export function AdminOrderDetailsView({
 }: AdminOrderDetailsViewProps) {
   return (
     <div className="container mx-auto max-w-7xl px-4 py-8">
-      <AdminOrderHeader order={order} />
+      <AdminOrderDetailsHeader order={order} />
       <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* Main Content Column */}
         <div className="lg:col-span-2 space-y-8">

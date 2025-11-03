@@ -30,6 +30,10 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
+// Define the base URL for images, falling back to localhost if not set
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL_IMAGES || "http://localhost:5000";
+
 export default function BrandPage() {
   const params = useParams();
   const slug = params.slug as string;
@@ -43,28 +47,34 @@ export default function BrandPage() {
   // Find brand by slug
   const brand = brandsData?.data?.brands?.find((b: Brand) => b.slug === slug);
 
-  // Fetch products for this brand
+  // --- FIX START ---
+  // Fetch products for this brand, but ONLY if the brand ID exists.
+  // The `enabled` option prevents the query from running if `brand?._id` is falsy (e.g., undefined).
   const { data: productsData, isLoading: productsLoading } = useProducts({
     brand: brand?._id,
     page: currentPage,
     limit: 12,
     sort: sortBy,
   });
+  // --- FIX END ---
 
-  const isLoading = brandsLoading || productsLoading;
-  const products = productsData?.data || [];
-  const totalPages = productsData?.pages || 1;
+  // Combined loading state should reflect both queries
+  const isLoading = brandsLoading || (!!brand && productsLoading);
 
-  if (brandsLoading || isLoading) {
+  // --- FIX: Show skeleton while brands are loading and we haven't determined if the brand exists yet ---
+  if (brandsLoading) {
     return <BrandPageSkeleton />;
   }
 
+  // If, after loading, the brand is still not found, show the "Not Found" page.
+  // This now correctly handles inactive brands because they won't be in `brandsData`.
   if (!brand) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <h1 className="text-3xl font-bold mb-4">Brand Not Found</h1>
         <p className="text-muted-foreground mb-8">
-          The brand you&apos;re looking for doesn&apos;t exist.
+          The brand you&apos;re looking for either doesn&apos;t exist or is not
+          currently active.
         </p>
         <Button asChild>
           <Link href="/">Go to Home</Link>
@@ -72,6 +82,16 @@ export default function BrandPage() {
       </div>
     );
   }
+
+  const products = productsData?.data || [];
+  const totalPages = productsData?.pages || 1;
+
+  // Construct the full logo URL.
+  const logoUrl = brand.logo
+    ? brand.logo.startsWith("http")
+      ? brand.logo
+      : `${API_BASE_URL}${brand.logo}`
+    : "";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -100,10 +120,10 @@ export default function BrandPage() {
         <div className="absolute inset-0 bg-grid-white/10" />
         <div className="container mx-auto px-4 py-12 relative">
           <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
-            {brand.logo && (
+            {logoUrl && (
               <div className="relative w-32 h-32 rounded-2xl overflow-hidden shadow-lg ring-4 ring-background">
                 <Image
-                  src={brand.logo}
+                  src={logoUrl}
                   alt={brand.name}
                   fill
                   className="object-contain"
@@ -162,7 +182,7 @@ export default function BrandPage() {
 
       {/* Products Grid */}
       <div className="container mx-auto px-4 py-12">
-        {productsLoading ? (
+        {isLoading ? ( // Use the combined loading state here
           <ProductsGridSkeleton />
         ) : products.length === 0 ? (
           <div className="text-center py-16">
@@ -228,7 +248,7 @@ export default function BrandPage() {
   );
 }
 
-// Product Card Component
+// Product Card Component (No changes needed)
 function ProductCard({ product }: { product: Product }) {
   const finalPrice =
     product.onSale && product.salePrice ? product.salePrice : product.price;
@@ -327,7 +347,7 @@ function ProductCard({ product }: { product: Product }) {
   );
 }
 
-// Loading Skeletons
+// Loading Skeletons (No changes needed)
 function BrandPageSkeleton() {
   return (
     <div className="min-h-screen">

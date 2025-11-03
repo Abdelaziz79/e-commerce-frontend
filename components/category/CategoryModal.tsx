@@ -1,4 +1,4 @@
-// ===== components/category/CategoryModal.tsx =====
+// components/category/CategoryModal.tsx
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,10 +16,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type { Category, CreateCategoryData } from "@/types/category";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL_IMAGES || "http://localhost:5000";
 
 interface CategoryModalProps {
   isOpen: boolean;
@@ -42,6 +47,71 @@ export function CategoryModal({
   categories,
   isSubmitting,
 }: CategoryModalProps) {
+  const [imageType, setImageType] = useState<"upload" | "url">("upload");
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Effect to set the correct tab when the modal opens for editing
+  useEffect(() => {
+    if (isOpen) {
+      if (editingCategory?.image && editingCategory.image.startsWith("http")) {
+        setImageType("url");
+      } else {
+        setImageType("upload");
+      }
+      // Clear any previous file previews when modal opens
+      setPreviewUrl("");
+    }
+  }, [isOpen, editingCategory]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        alert("Please upload an image file");
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        alert("File size must be less than 5MB");
+        return;
+      }
+
+      setFormData({ ...formData, image: file });
+      setPreviewUrl(URL.createObjectURL(file));
+      // Switch to the upload tab for better UX
+      setImageType("upload");
+    }
+  };
+
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, image: e.target.value });
+    // Switch to the URL tab for better UX
+    setImageType("url");
+  };
+
+  const handleRemoveFile = () => {
+    setFormData({ ...formData, image: "" });
+    setPreviewUrl("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const getImagePreview = () => {
+    if (formData.image instanceof File) {
+      return previewUrl;
+    }
+    if (typeof formData.image === "string" && formData.image) {
+      if (formData.image.startsWith("/uploads/")) {
+        return `${API_BASE_URL}${formData.image}`;
+      }
+      return formData.image;
+    }
+    return "";
+  };
+
+  const imagePreview = getImagePreview();
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
@@ -74,7 +144,7 @@ export function CategoryModal({
             </Label>
             <Textarea
               id="description"
-              value={formData.description}
+              value={formData.description || ""}
               onChange={(e) =>
                 setFormData({ ...formData, description: e.target.value })
               }
@@ -85,24 +155,63 @@ export function CategoryModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="image" className="text-sm font-medium">
-              Image URL
-            </Label>
-            <Input
-              id="image"
-              type="url"
-              value={formData.image}
-              onChange={(e) =>
-                setFormData({ ...formData, image: e.target.value })
-              }
-              placeholder="https://example.com/image.jpg"
-              className="h-10"
-            />
-            {formData.image && (
+            <Label className="text-sm font-medium">Image</Label>
+
+            <Tabs
+              value={imageType}
+              onValueChange={(v) => setImageType(v as "upload" | "url")}
+            >
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="upload">Upload File</TabsTrigger>
+                <TabsTrigger value="url">Use URL</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="upload" className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Input
+                    ref={fileInputRef}
+                    id="image-file"
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    onChange={handleFileChange}
+                    className="h-10"
+                  />
+                  {formData.image && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={handleRemoveFile}
+                      className="h-10 w-10 shrink-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Accepted formats: JPEG, PNG, WebP (Max 5MB)
+                </p>
+              </TabsContent>
+
+              <TabsContent value="url" className="space-y-3">
+                <Input
+                  id="image-url"
+                  type="url"
+                  value={
+                    typeof formData.image === "string" ? formData.image : ""
+                  }
+                  onChange={handleUrlChange}
+                  placeholder="https://example.com/image.jpg"
+                  className="h-10"
+                />
+              </TabsContent>
+            </Tabs>
+
+            {imagePreview && (
               <div className="relative h-32 w-full bg-muted rounded-lg overflow-hidden mt-3">
                 <Image
-                  src={formData.image}
-                  alt="Preview"
+                  src={imagePreview}
+                  alt="Image preview"
                   fill
                   className="object-cover"
                   onError={(e) => {
@@ -145,7 +254,7 @@ export function CategoryModal({
           </div>
 
           <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-            <div className="space-y-0.5">
+            <div>
               <Label
                 htmlFor="isActive"
                 className="text-sm font-medium cursor-pointer"

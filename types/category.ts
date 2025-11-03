@@ -22,15 +22,24 @@ export interface CategoriesParams {
   [key: string]: string | number | boolean | undefined;
 }
 
+export interface CategorySearchParams {
+  q: string; // Search query (required)
+  page?: number;
+  limit?: number;
+  sort?: string;
+  fields?: string;
+  [key: string]: string | number | undefined; // Index signature for compatibility
+}
+
 export interface CreateCategoryData {
   name: string;
   description?: string;
-  image?: string;
+  image?: File | string; // Support both File upload and URL
   parentCategory?: string | null;
   isActive?: boolean;
 }
 
-export type UpdateCategoryData = Partial<Category>;
+export type UpdateCategoryData = Partial<CreateCategoryData>;
 
 // --- API RESPONSE TYPES ---
 export interface PaginatedCategoriesResponse {

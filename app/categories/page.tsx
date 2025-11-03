@@ -20,21 +20,26 @@ import {
 } from "lucide-react";
 import { Category } from "@/types/category";
 
+// Define the base URL for images, falling back to localhost if not set
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL_IMAGES || "http://localhost:5000";
+
 export default function CategoriesPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: categoriesData, isLoading } = useCategories({
-    limit: 100, // Get all categories
+    limit: 1000, // Get all categories to build parent/child relationships
+    sort: "name", // Sort alphabetically
   });
 
-  const categories = categoriesData?.data?.categories || [];
+  const allCategories = categoriesData?.data?.categories || [];
 
   // Filter categories based on search
-  const filteredCategories = categories.filter((category: Category) =>
+  const filteredCategories = allCategories.filter((category: Category) =>
     category.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Separate parent and child categories
+  // We only want to display top-level categories in the main grid
   const parentCategories = filteredCategories.filter(
     (cat: Category) => !cat.parentCategory
   );
@@ -96,14 +101,14 @@ export default function CategoriesPage() {
               All Categories
             </h2>
             <p className="text-muted-foreground mt-1">
-              {parentCategories.length} categories available
+              {parentCategories.length} main categories available
             </p>
           </div>
         </div>
 
         {isLoading ? (
           <CategoriesGridSkeleton />
-        ) : filteredCategories.length === 0 ? (
+        ) : parentCategories.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
               <Search className="h-12 w-12 text-muted-foreground" />
@@ -126,7 +131,7 @@ export default function CategoriesPage() {
               <CategoryCard
                 key={category._id}
                 category={category}
-                subcategories={categories.filter(
+                subcategories={allCategories.filter(
                   (cat: Category) => cat.parentCategory === category._id
                 )}
               />
@@ -146,13 +151,19 @@ function CategoryCard({
   category: Category;
   subcategories: Category[];
 }) {
+  const imageUrl = category.image
+    ? category.image.startsWith("http")
+      ? category.image
+      : `${API_BASE_URL}${category.image}`
+    : "";
+
   return (
     <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 border-muted hover:border-primary/50 pt-0">
       <Link href={`/categories/${category.slug}`}>
-        <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-primary/5 to-primary/10">
-          {category.image ? (
+        <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-background to-muted/50">
+          {imageUrl ? (
             <Image
-              src={category.image}
+              src={imageUrl}
               alt={category.name}
               fill
               className="object-cover group-hover:scale-110 transition-transform duration-500"
@@ -238,14 +249,12 @@ function CategoriesGridSkeleton() {
           <Skeleton className="aspect-[4/3]" />
           <CardContent className="p-6">
             <Skeleton className="h-7 w-3/4 mb-2" />
-            <Skeleton className="h-4 w-full mb-2" />
-            <Skeleton className="h-4 w-2/3 mb-4" />
+            <Skeleton className="h-4 w-full mb-4" />
             <div className="space-y-2">
               <Skeleton className="h-3 w-24 mb-2" />
               <div className="flex gap-2">
                 <Skeleton className="h-6 w-16" />
                 <Skeleton className="h-6 w-20" />
-                <Skeleton className="h-6 w-16" />
               </div>
             </div>
             <Skeleton className="h-9 w-full mt-4" />

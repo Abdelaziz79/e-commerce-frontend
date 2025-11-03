@@ -2,13 +2,12 @@
 "use client";
 
 import { AdminOrdersView } from "@/components/admin/orders/AdminOrdersView";
-
-import { useOrders } from "@/hooks/use-orders";
-import { useDebounce } from "@/hooks/use-debounce"; // A custom hook for debouncing search input
-import { OrderStatus } from "@/types/order";
-import { useState } from "react";
 import { LoadingDisplay } from "@/components/cart/LoadingDisplay";
 import { ErrorDisplay } from "@/components/favorites/ErrorDisplay";
+import { useDebounce } from "@/hooks/use-debounce";
+import { useExportOrders, useOrders } from "@/hooks/use-orders";
+import { OrderStatus } from "@/types/order";
+import { useEffect, useState } from "react";
 
 export default function AdminOrdersPage() {
   const [page, setPage] = useState(1);
@@ -18,26 +17,50 @@ export default function AdminOrdersPage() {
   // Debounce the search query to avoid excessive API calls while typing
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
+  // Export orders mutation
+  const exportOrdersMutation = useExportOrders();
+
   // Use the admin-specific 'useOrders' hook
   const { data, isLoading, error } = useOrders({
     page,
-    limit: 15, // Admins might want to see more items per page
+    limit: 15,
     status: statusFilter === "all" ? undefined : statusFilter,
-    // Note: Your useOrders hook would need to support a search/keyword param
-    // For now, we assume the backend's APIFeatures handles a 'keyword' or 'search' query param
     keyword: debouncedSearchQuery || undefined,
   });
 
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, debouncedSearchQuery]);
+
+  // Handle export orders
+  const handleExportOrders = () => {
+    exportOrdersMutation.mutate({
+      status: statusFilter === "all" ? undefined : statusFilter,
+    });
+  };
+
+  // Handle page change with scroll to top
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   if (isLoading && !data) {
-    // Show a full-page loader only on the initial load
-    return <LoadingDisplay />;
+    return (
+      <div className="container mx-auto max-w-7xl px-4 py-8">
+        <LoadingDisplay />
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <ErrorDisplay
-        message={error.message || "Failed to load orders. Please try again."}
-      />
+      <div className="container mx-auto max-w-7xl px-4 py-8">
+        <ErrorDisplay
+          message={error.message || "Failed to load orders. Please try again."}
+        />
+      </div>
     );
   }
 
@@ -48,14 +71,14 @@ export default function AdminOrdersPage() {
     <AdminOrdersView
       orders={orders}
       pagination={pagination}
-      isLoading={isLoading} // Pass loading state for inline indicators
-      // State and handlers for filters
+      isLoading={isLoading}
       searchQuery={searchQuery}
       setSearchQuery={setSearchQuery}
       statusFilter={statusFilter}
       setStatusFilter={setStatusFilter}
-      // Handler for pagination
-      onPageChange={setPage}
+      onPageChange={handlePageChange}
+      onExportOrders={handleExportOrders}
+      isExporting={exportOrdersMutation.isPending}
     />
   );
 }

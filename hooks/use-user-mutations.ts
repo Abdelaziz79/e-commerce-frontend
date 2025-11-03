@@ -100,6 +100,108 @@ export function useUpdatePassword() {
   });
 }
 
+// ============ AVATAR MUTATIONS ============
+
+/**
+ * Hook to upload/update user avatar
+ */
+export function useUploadAvatar() {
+  const queryClient = useQueryClient();
+  const { updateUser, user } = useAuth();
+
+  return useMutation({
+    mutationFn: (file: File) => apiClient.uploadAvatar(file),
+    onMutate: () => {
+      toast.loading("Uploading avatar...", { id: "avatar-upload" });
+    },
+    onSuccess: (response) => {
+      toast.dismiss("avatar-upload");
+
+      // Update auth context with new avatar
+      if (user) {
+        updateUser({ ...user, avatar: response.data.avatar });
+      }
+
+      // Update React Query cache
+      queryClient.setQueryData(
+        USER_KEYS.profile,
+        (oldData: UserProfileResponse | undefined) => {
+          if (oldData) {
+            return {
+              ...oldData,
+              data: {
+                ...oldData.data,
+                avatar: response.data.avatar,
+              },
+            };
+          }
+          return oldData;
+        }
+      );
+
+      // Invalidate profile query to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: USER_KEYS.profile });
+
+      toast.success(response.message || "Avatar uploaded successfully!");
+    },
+    onError: (error: ApiError) => {
+      toast.dismiss("avatar-upload");
+      toast.error(error.message || "Failed to upload avatar");
+    },
+  });
+}
+
+/**
+ * Hook to delete user avatar (reset to default)
+ */
+export function useDeleteAvatar() {
+  const queryClient = useQueryClient();
+  const { updateUser, user } = useAuth();
+
+  return useMutation({
+    mutationFn: () => apiClient.deleteAvatar(),
+    onMutate: () => {
+      toast.loading("Deleting avatar...", { id: "avatar-delete" });
+    },
+    onSuccess: (response) => {
+      toast.dismiss("avatar-delete");
+
+      // Update auth context with default avatar
+      if (user) {
+        updateUser({ ...user, avatar: response.data.avatar });
+      }
+
+      // Update React Query cache
+      queryClient.setQueryData(
+        USER_KEYS.profile,
+        (oldData: UserProfileResponse | undefined) => {
+          if (oldData) {
+            return {
+              ...oldData,
+              data: {
+                ...oldData.data,
+                avatar: response.data.avatar,
+              },
+            };
+          }
+          return oldData;
+        }
+      );
+
+      // Invalidate profile query to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: USER_KEYS.profile });
+
+      toast.success(response.message || "Avatar deleted successfully!");
+    },
+    onError: (error: ApiError) => {
+      toast.dismiss("avatar-delete");
+      toast.error(error.message || "Failed to delete avatar");
+    },
+  });
+}
+
+// ============ ADDRESS MUTATIONS ============
+
 /**
  * Hook to add user address
  */
@@ -251,4 +353,23 @@ export function useDefaultAddress() {
   const { addresses } = useUserAddresses();
 
   return addresses.find((address) => address.isDefault) || null;
+}
+
+/**
+ * Hook to get user avatar URL
+ */
+export function useUserAvatar() {
+  const { data: profileData } = useUserProfile();
+  const apiBaseUrl =
+    process.env.NEXT_PUBLIC_IMAGE_HOST_URL || "http://localhost:5000";
+
+  const avatar =
+    profileData?.data?.avatar || "/uploads/avatars/default-avatar.png";
+
+  // Return full URL if avatar is a relative path
+  if (avatar.startsWith("/")) {
+    return `${apiBaseUrl}${avatar}`;
+  }
+
+  return avatar;
 }

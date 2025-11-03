@@ -1,41 +1,47 @@
 // ===== components/brand/BrandStats.tsx =====
 import { Card } from "@/components/ui/card";
+import { Package, CheckCircle, Star } from "lucide-react";
 
 interface BrandStatsProps {
-  stats: {
-    total: number;
-    withLogo: number;
-    withWebsite: number;
-  };
+  totalBrands: number;
 }
 
-export function BrandStats({ stats }: BrandStatsProps) {
-  const statItems = [
-    { label: "Total Brands", value: stats.total, color: "text-foreground" },
-    {
-      label: "With Logo",
-      value: stats.withLogo,
-      color: "text-blue-600 dark:text-blue-400",
-    },
-    {
-      label: "With Website",
-      value: stats.withWebsite,
-      color: "text-green-600 dark:text-green-400",
-    },
-  ];
-
+export function BrandStats({ totalBrands }: BrandStatsProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-      {statItems.map((stat) => (
-        <Card key={stat.label} className="p-4 border-0 bg-muted/50">
-          <p className="text-xs font-medium text-muted-foreground mb-1">
-            {stat.label}
+      <Card className="p-4 border-0 bg-muted/50">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium text-muted-foreground">
+            Total Brands
           </p>
-          <p className={`text-2xl font-semibold tabular-nums ${stat.color}`}>
-            {stat.value}
-          </p>
-        </Card>
-      ))}
+          <Package className="h-4 w-4 text-muted-foreground" />
+        </div>
+        <p className="text-2xl font-semibold tabular-nums mt-1">
+          {totalBrands}
+        </p>
+      </Card>
+
+      {/* Placeholder stat cards - can be replaced with real data if available from API */}
+      <Card className="p-4 border-0 bg-muted/50">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium text-muted-foreground">Active</p>
+          <CheckCircle className="h-4 w-4 text-muted-foreground" />
+        </div>
+        <p className="text-2xl font-semibold tabular-nums mt-1">
+          {/* This would require backend data */}
+          {totalBrands}
+        </p>
+      </Card>
+
+      <Card className="p-4 border-0 bg-muted/50">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium text-muted-foreground">Featured</p>
+          <Star className="h-4 w-4 text-muted-foreground" />
+        </div>
+        <p className="text-2xl font-semibold tabular-nums mt-1">
+          {/* This would require backend data */}0
+        </p>
+      </Card>
     </div>
   );
 }

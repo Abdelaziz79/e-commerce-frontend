@@ -20,8 +20,8 @@ export default function AdminOrderDetailsPage() {
 
   const [isTrackingDialogOpen, setTrackingDialogOpen] = useState(false);
 
-  // Re-use the same useOrder hook
-  const { data, isLoading, error } = useOrder(orderId);
+  // Fetch order data
+  const { data, isLoading, error, refetch } = useOrder(orderId);
 
   // Admin-specific mutation hooks
   const updateStatusMutation = useUpdateOrderStatus();
@@ -29,10 +29,18 @@ export default function AdminOrderDetailsPage() {
 
   // Handler to update the order's status
   const handleStatusUpdate = (status: OrderStatus) => {
-    updateStatusMutation.mutate({
-      orderId,
-      data: { status },
-    });
+    updateStatusMutation.mutate(
+      {
+        orderId,
+        data: { status },
+      },
+      {
+        onSuccess: () => {
+          // Refetch to get updated data
+          refetch();
+        },
+      }
+    );
   };
 
   // Handler to add tracking information
@@ -41,25 +49,36 @@ export default function AdminOrderDetailsPage() {
       { orderId, data: trackingData },
       {
         onSuccess: () => {
-          setTrackingDialogOpen(false); // Close dialog on success
-        },
-        onError: (err) => {
-          // Toast is already handled in the hook, but you can add more logic here
-          console.error("Failed to add tracking info:", err);
+          setTrackingDialogOpen(false);
+          // Refetch to get updated tracking info
+          refetch();
         },
       }
     );
   };
 
+  // Loading state
   if (isLoading) {
-    return <LoadingDisplay />;
+    return (
+      <div className="container mx-auto max-w-7xl px-4 py-8">
+        <LoadingDisplay />
+      </div>
+    );
   }
 
-  if (error || !data?.data) {
-    return <ErrorDisplay message={error?.message || "Order not found."} />;
+  // Error state or no data
+  if (error || !data?.data?.order) {
+    return (
+      <div className="container mx-auto max-w-7xl px-4 py-8">
+        <ErrorDisplay
+          message={error?.message || "Order not found. Please try again."}
+        />
+      </div>
+    );
   }
 
-  const order = data.data;
+  // Extract the order from the nested response structure
+  const order = data.data.order;
 
   return (
     <>
