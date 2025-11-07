@@ -1,135 +1,161 @@
-// app/products/components/ProductCard.tsx
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { useAuth } from "@/hooks/auth-context";
+import {
+  useAddToCart,
+  useIsFavorite,
+  useToggleFavorite,
+} from "@/hooks/use-cart-favorites";
 import { Product } from "@/types/product";
-import { ImageIcon } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ProductCardGridView } from "./ProductCardGridView";
+import { ProductCardListView } from "./ProductCardListView";
 
 interface ProductCardProps {
   product: Product;
+  view?: "grid" | "list";
+  position?: "left" | "middle" | "right";
+  isLast?: boolean;
 }
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL_IMAGES || "http://localhost:5000";
-
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({
+  product,
+  view = "grid",
+  position = "middle",
+  isLast = false,
+}: ProductCardProps) {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageError, setImageError] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const { token } = useAuth();
 
-  const discount =
-    product.onSale && product.salePrice && product.salePrice < product.price
-      ? Math.round(((product.price - product.salePrice) / product.price) * 100)
-      : 0;
-  const displayPrice =
-    product.onSale && product.salePrice ? product.salePrice : product.price;
+  const isFavorite = useIsFavorite(product._id);
+  const { toggle: toggleFavorite, isLoading: isFavoriteLoading } =
+    useToggleFavorite();
+  const { mutate: addToCart, isPending: isAddingToCart } = useAddToCart();
 
-  // Safely access the brand name from the populated object
-  const brandName =
-    typeof product.brand === "object" ? product.brand.name : "Unbranded";
+  // Only use additional images (not mainImage) for cycling
+  const additionalImages = useMemo(
+    () => product.images.filter(Boolean),
+    [product.images]
+  );
 
-  // Get the image source with proper handling
-  const getImageSrc = (): string => {
-    const imagePath = product.mainImage || product.images?.[0];
+  const discountPercentage = useMemo(
+    () =>
+      product.onSale && product.salePrice
+        ? Math.round(
+            ((product.price - product.salePrice) / product.price) * 100
+          )
+        : 0,
+    [product]
+  );
 
-    if (!imagePath) {
-      return "/images/sample.jpg";
+  const displayPrice = useMemo(
+    () =>
+      product.onSale && product.salePrice ? product.salePrice : product.price,
+    [product]
+  );
+
+  const brandName = useMemo(
+    () => (typeof product.brand === "object" ? product.brand.name : "Brand"),
+    [product.brand]
+  );
+
+  const brandSlug = useMemo(
+    () => (typeof product.brand === "object" ? product.brand.slug : ""),
+    [product.brand]
+  );
+
+  const categoryName = useMemo(
+    () =>
+      typeof product.category === "object" ? product.category.name : "Category",
+    [product.category]
+  );
+
+  const categorySlug = useMemo(
+    () => (typeof product.category === "object" ? product.category.slug : ""),
+    [product.category]
+  );
+
+  // Cycle through additional images only, not main image
+  useEffect(() => {
+    if (!isHovered || additionalImages.length === 0) {
+      setCurrentImageIndex(0);
+      return;
     }
 
-    // If it's already a full URL (starts with http/https)
-    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
-      return imagePath;
-    }
+    // Immediately show first additional image on hover
+    setCurrentImageIndex(1);
 
-    // If it's a relative path from uploads (starts with /uploads/)
-    if (imagePath.startsWith("/uploads/")) {
-      return `${API_BASE_URL}${imagePath}`;
-    }
+    if (additionalImages.length === 1) return;
 
-    // If it's just a filename or other relative path
-    if (imagePath.startsWith("/")) {
-      return `${API_BASE_URL}${imagePath}`;
-    }
+    // Then cycle through remaining images every 1 second
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) => {
+        const nextIndex = prev + 1;
+        return nextIndex > additionalImages.length ? 1 : nextIndex;
+      });
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [isHovered, additionalImages.length]);
 
-    // Fallback
-    return `${API_BASE_URL}/uploads/products/${imagePath}`;
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!token || product.countInStock === 0) return;
+    addToCart(
+      { productId: product._id, quantity: 1 },
+      {
+        onSuccess: () => {
+          setShowSuccess(true);
+          setTimeout(() => setShowSuccess(false), 2000);
+        },
+      }
+    );
   };
 
-  const imageSrc = getImageSrc();
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (token) toggleFavorite(product._id, isFavorite);
+  };
 
-  return (
-    <Link href={`/products/${product.slug}`}>
-      <Card className="h-full flex flex-col overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 bg-white border-gray-200 rounded-xl group">
-        <div className="relative aspect-square bg-gray-50">
-          {!imageError ? (
-            <Image
-              src={imageSrc}
-              alt={product.name}
-              fill
-              className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              onError={() => setImageError(true)}
-              priority={false}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gray-100">
-              <ImageIcon className="w-16 h-16 text-gray-300" />
-            </div>
-          )}
-          {discount > 0 && (
-            <Badge variant="destructive" className="absolute top-3 right-3">
-              {discount}% OFF
-            </Badge>
-          )}
-          {product.isNewProduct && (
-            <Badge className="absolute top-3 left-3 bg-blue-500 text-white hover:bg-blue-600">
-              New
-            </Badge>
-          )}
-        </div>
-        <CardContent className="p-4 flex-1 flex flex-col">
-          <p className="text-xs text-gray-500 mb-1">{brandName}</p>
-          <h3 className="font-semibold text-gray-800 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
-            {product.name}
-          </h3>
-          <div className="mt-auto pt-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-baseline gap-2">
-                <span className="font-bold text-lg text-gray-900">
-                  ${displayPrice.toFixed(2)}
-                </span>
-                {discount > 0 && (
-                  <span className="text-gray-400 text-sm line-through">
-                    ${product.price.toFixed(2)}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-1">
-                <svg
-                  className="w-4 h-4 text-yellow-400 fill-current"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                </svg>
-                <span className="text-xs text-gray-500">
-                  {product.rating.toFixed(1)} ({product.numReviews})
-                </span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter className="p-2">
-          <Button
-            variant="outline"
-            className="w-full transition-colors border-gray-300 hover:bg-gray-800 hover:text-white rounded-md"
-          >
-            View Details
-          </Button>
-        </CardFooter>
-      </Card>
-    </Link>
-  );
+  // Get current image to display
+  const getCurrentImage = () => {
+    if (currentImageIndex === 0) {
+      return product.mainImage;
+    }
+    return additionalImages[currentImageIndex - 1];
+  };
+
+  const sharedProps = {
+    product,
+    currentImage: getCurrentImage(),
+    imageError,
+    setImageError,
+    isHovered,
+    setIsHovered,
+    brandName,
+    brandSlug,
+    categoryName,
+    categorySlug,
+    displayPrice,
+    discountPercentage,
+    isFavorite,
+    isFavoriteLoading,
+    isAddingToCart,
+    showSuccess,
+    token,
+    handleFavoriteClick,
+    handleAddToCart,
+    position,
+    isLast,
+  };
+
+  if (view === "list") {
+    return <ProductCardListView {...sharedProps} />;
+  }
+
+  return <ProductCardGridView {...sharedProps} />;
 }

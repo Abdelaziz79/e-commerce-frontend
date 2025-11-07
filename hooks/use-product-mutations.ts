@@ -1,5 +1,5 @@
 // hooks/use-product-mutations.ts
-import { apiClient } from "@/lib/api-client";
+import { apiClient } from "@/lib/apiClient";
 import { ApiError } from "@/types/auth";
 import {
   BulkDeleteData,

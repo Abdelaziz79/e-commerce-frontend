@@ -1,63 +1,55 @@
-// app/products/components/SortDropdown.tsx
 "use client";
 
-import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ArrowUpDown } from "lucide-react";
 
 interface SortDropdownProps {
   sortBy: string;
   setSortBy: (value: string) => void;
 }
 
-const sortOptions = {
-  "-createdAt": "Newest",
-  "-rating": "Highest Rated",
-  price: "Price: Low to High",
-  "-price": "Price: High to Low",
-};
+const sortOptions = [
+  { value: "-createdAt", label: "Newest First" },
+  { value: "-rating", label: "Highest Rated" },
+  { value: "price", label: "Price: Low to High" },
+  { value: "-price", label: "Price: High to Low" },
+  { value: "name", label: "Name: A-Z" },
+  { value: "-name", label: "Name: Z-A" },
+];
 
 export function SortDropdown({ sortBy, setSortBy }: SortDropdownProps) {
+  const currentLabel =
+    sortOptions.find((opt) => opt.value === sortBy)?.label || "Sort by";
+
   return (
-    <div className="flex items-center">
-      <span className="text-sm text-gray-600 mr-2">Sort by:</span>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            className="bg-white border-gray-300 rounded-md"
-          >
-            {sortOptions[sortBy as keyof typeof sortOptions]}
-            <svg
-              className="w-4 h-4 ml-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+    <div className="flex items-center gap-2">
+      <Select value={sortBy} onValueChange={setSortBy}>
+        <SelectTrigger className="w-[180px] h-9 text-sm rounded-none">
+          <div className="flex items-center gap-2 ">
+            <ArrowUpDown className="h-3.5 w-3.5 text-gray-500" />
+            <SelectValue>
+              <span className="font-medium text-gray-900">{currentLabel}</span>
+            </SelectValue>
+          </div>
+        </SelectTrigger>
+        <SelectContent>
+          {sortOptions.map((option) => (
+            <SelectItem
+              key={option.value}
+              value={option.value}
+              className="text-sm"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="end"
-          className="bg-white border-gray-200 shadow-lg rounded-lg"
-        >
-          {Object.entries(sortOptions).map(([value, label]) => (
-            <DropdownMenuItem key={value} onClick={() => setSortBy(value)}>
-              {label}
-            </DropdownMenuItem>
+              {option.label}
+            </SelectItem>
           ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </SelectContent>
+      </Select>
     </div>
   );
 }

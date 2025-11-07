@@ -1,5 +1,5 @@
 // hooks/use-user-mutations.ts
-import { apiClient } from "@/lib/api-client";
+import { apiClient } from "@/lib/apiClient";
 import { ApiError } from "@/types/auth";
 import {
   AddAddressData,
@@ -356,7 +356,7 @@ export function useDefaultAddress() {
 }
 
 /**
- * Hook to get user avatar URL
+ * Hook to get user avatar URL (FIXED: Better URL handling)
  */
 export function useUserAvatar() {
   const { data: profileData } = useUserProfile();
@@ -366,10 +366,12 @@ export function useUserAvatar() {
   const avatar =
     profileData?.data?.avatar || "/uploads/avatars/default-avatar.png";
 
-  // Return full URL if avatar is a relative path
-  if (avatar.startsWith("/")) {
-    return `${apiBaseUrl}${avatar}`;
+  // Check if already a full URL
+  if (avatar.startsWith("http://") || avatar.startsWith("https://")) {
+    return avatar;
   }
 
-  return avatar;
+  // Ensure avatar starts with /
+  const normalizedPath = avatar.startsWith("/") ? avatar : `/${avatar}`;
+  return `${apiBaseUrl}${normalizedPath}`;
 }

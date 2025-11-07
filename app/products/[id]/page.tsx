@@ -2,22 +2,25 @@
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-// --- ACTION: Import the real hooks ---
-import { useAddToCart, useAddToFavorites } from "@/hooks/use-cart-favorites";
+import {
+  useAddToCart,
+  useAddToFavorites,
+  useIsFavorite,
+} from "@/hooks/use-cart-favorites";
 import { useProduct } from "@/hooks/use-product-queries";
 import { useReviews } from "@/hooks/use-review-hooks";
 import { Category } from "@/types/category";
+import { Product } from "@/types/product";
 import { Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
-// Import the smaller components
 import { ProductActions } from "@/components/products/product-page/ProductActions";
 import { ProductBreadcrumb } from "@/components/products/product-page/ProductBreadcrumb";
 import { ProductDetails } from "@/components/products/product-page/ProductDetails";
 import { ProductImageCarousel } from "@/components/products/product-page/ProductImageCarousel";
-import { ProductInfoTabs } from "@/components/products/product-page/ProductInfoTabs";
+import { ProductInfoPage } from "@/components/products/product-page/ProductInfoPage";
 import { ProductMetaInfo } from "@/components/products/product-page/ProductMetaInfo";
 import { ProductVariations } from "@/components/products/product-page/ProductVariations";
 
@@ -31,19 +34,28 @@ export default function ProductPage() {
     null
   );
 
-  // --- DATA FETCHING ---
   const { data: productData, isLoading, error } = useProduct(productIdOrSlug);
   const product = productData?.data;
 
   const { data: reviewsData } = useReviews({ product: product?._id });
   const reviews = reviewsData?.data.reviews || [];
 
-  // --- MUTATIONS (Using real hooks) ---
+  const isFavorite = useIsFavorite(product?._id || "");
+
   const { mutate: addToCart, isPending: isAddingToCart } = useAddToCart();
   const { mutate: addToFavorites, isPending: isAddingToFavorites } =
     useAddToFavorites();
 
-  // --- LOADING AND ERROR STATES ---
+  // Filter out invalid related products (strings instead of objects)
+  const relatedProducts = useMemo(() => {
+    if (!product?.relatedProducts) return [];
+
+    return product.relatedProducts.filter(
+      (rp): rp is Product =>
+        typeof rp === "object" && rp !== null && "_id" in rp
+    );
+  }, [product?.relatedProducts]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -66,7 +78,6 @@ export default function ProductPage() {
     );
   }
 
-  // --- DERIVED STATE & HANDLERS ---
   const selectedVariation = product.variations?.find(
     (v) => v._id === selectedVariationId
   );
@@ -93,7 +104,6 @@ export default function ProductPage() {
       return;
     }
 
-    // Call the real mutation hook with the required data
     addToCart({
       productId: product._id,
       quantity,
@@ -102,22 +112,21 @@ export default function ProductPage() {
   };
 
   const handleAddToFavorites = () => {
-    // Call the real mutation hook with the product ID
     addToFavorites(product._id);
   };
 
   return (
-    <div className="w-full bg-slate-50">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="w-full bg-white">
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
         <ProductBreadcrumb category={category} productName={product.name} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 my-8">
           <ProductImageCarousel
             images={product.images}
             productName={product.name}
           />
 
-          <div>
+          <div className="space-y-6">
             <ProductDetails
               product={product}
               brandName={brandName}
@@ -141,17 +150,20 @@ export default function ProductPage() {
               onAddToFavorites={handleAddToFavorites}
               isAddingToCart={isAddingToCart}
               isAddingToFavorites={isAddingToFavorites}
+              isFavorite={isFavorite}
             />
 
             <Separator />
 
-            <div className="mt-6">
-              <ProductMetaInfo product={product} />
-            </div>
+            <ProductMetaInfo product={product} />
           </div>
         </div>
 
-        <ProductInfoTabs product={product} reviews={reviews} />
+        <ProductInfoPage
+          product={product}
+          reviews={reviews}
+          relatedProducts={relatedProducts}
+        />
       </div>
     </div>
   );

@@ -1,7 +1,6 @@
-// src/components/products/product-page/ProductDetails.tsx
 import { Badge } from "@/components/ui/badge";
 import { Product } from "@/types/product";
-import { Star } from "lucide-react";
+import { Star, CheckCircle2, XCircle } from "lucide-react";
 
 interface ProductDetailsProps {
   product: Product;
@@ -20,72 +19,84 @@ export function ProductDetails({
   originalPrice,
   discountPercent,
 }: ProductDetailsProps) {
+  const isInStock = availableStock > 0;
+
   return (
-    <>
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-2 flex-wrap">
-          <Badge
-            variant="outline"
-            className="text-blue-600 border-blue-200 bg-blue-50"
-          >
-            {brandName}
-          </Badge>
-          {availableStock > 0 ? (
-            <Badge
-              variant="outline"
-              className="text-green-600 border-green-200 bg-green-50"
-            >
-              In Stock ({availableStock})
-            </Badge>
-          ) : (
-            <Badge variant="destructive">Out of Stock</Badge>
-          )}
-          {product.isNewProduct && <Badge>New Arrival</Badge>}
-        </div>
+    <div className="space-y-5">
+      {/* Brand & Stock Status */}
+      <div className="flex items-center gap-2.5 flex-wrap">
+        <span className="text-xs font-medium text-gray-700 bg-gray-100 px-3 py-1.5 rounded-md">
+          {brandName}
+        </span>
 
-        <h1 className="text-4xl font-bold tracking-tight text-gray-900">
-          {product.name}
-        </h1>
-
-        <div className="flex items-center mt-3 gap-2">
-          <div className="flex items-center">
-            {[...Array(5)].map((_, i) => (
-              <Star
-                key={i}
-                className={`w-5 h-5 ${
-                  i < Math.round(product.rating)
-                    ? "text-yellow-400 fill-yellow-400"
-                    : "text-gray-300"
-                }`}
-              />
-            ))}
-          </div>
-          <a href="#reviews" className="text-gray-600 text-sm hover:underline">
-            ({product.numReviews}{" "}
-            {product.numReviews === 1 ? "review" : "reviews"})
-          </a>
-        </div>
+        {isInStock ? (
+          <span className="flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 px-3 py-1.5 rounded-md">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            In Stock
+          </span>
+        ) : (
+          <span className="flex items-center gap-1.5 text-xs font-medium text-red-700 bg-red-50 px-3 py-1.5 rounded-md">
+            <XCircle className="w-3.5 h-3.5" />
+            Out of Stock
+          </span>
+        )}
       </div>
 
-      <p className="text-gray-700 mb-6 text-base leading-relaxed">
+      {/* Product Name */}
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight tracking-tight">
+        {product.name}
+      </h1>
+
+      {/* Rating & Reviews */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-0.5">
+          {[...Array(5)].map((_, i) => (
+            <Star
+              key={i}
+              className={`w-4 h-4 ${
+                i < Math.round(product.rating)
+                  ? "text-yellow-500 fill-yellow-500"
+                  : "text-gray-300 fill-gray-300"
+              }`}
+            />
+          ))}
+        </div>
+        <span className="text-sm font-semibold text-gray-900">
+          {product.rating.toFixed(1)}
+        </span>
+        <span className="text-gray-300">·</span>
+        <a
+          href="#reviews"
+          className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          {product.numReviews} {product.numReviews === 1 ? "review" : "reviews"}
+        </a>
+      </div>
+
+      {/* Description */}
+      <p className="text-sm text-gray-600 leading-relaxed">
         {product.description}
       </p>
 
-      <div className="flex items-baseline mb-6">
-        <span className="text-3xl font-bold text-gray-900">
+      {/* Pricing */}
+      <div className="flex items-baseline gap-3 pt-1">
+        <span className="text-3xl font-bold text-gray-900 tracking-tight">
           ${currentPrice.toFixed(2)}
         </span>
         {originalPrice && (
-          <span className="ml-3 text-lg text-gray-400 line-through">
-            ${originalPrice.toFixed(2)}
-          </span>
-        )}
-        {discountPercent > 0 && (
-          <Badge variant="destructive" className="ml-3">
-            -{discountPercent}%
-          </Badge>
+          <>
+            <span className="text-lg text-gray-400 line-through">
+              ${originalPrice.toFixed(2)}
+            </span>
+            <Badge
+              variant="destructive"
+              className="text-xs font-semibold px-2 py-0.5 rounded-md"
+            >
+              -{discountPercent}%
+            </Badge>
+          </>
         )}
       </div>
-    </>
+    </div>
   );
 }

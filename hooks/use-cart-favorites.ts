@@ -1,25 +1,31 @@
 // hooks/use-cart-favorites.ts
-import { apiClient } from "@/lib/api-client";
+import { apiClient } from "@/lib/apiClient";
 import { ApiError } from "@/types/auth";
-import { Product, ProductsParams } from "@/types/product";
 import { AddToCartData, UpdateCartItemData } from "@/types/cart";
+import { Product, ProductsParams } from "@/types/product";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "./auth-context";
 
-// Query keys
+// Query keys (FIXED: Better structure)
 export const CART_KEYS = {
-  cart: ["cart"] as const,
+  all: ["cart"] as const,
+  details: () => [...CART_KEYS.all, "detail"] as const,
+  detail: () => [...CART_KEYS.details()] as const,
 } as const;
 
 export const FAVORITES_KEYS = {
   all: ["favorites"] as const,
-  list: (params?: ProductsParams) => ["favorites", "list", params] as const,
+  lists: () => [...FAVORITES_KEYS.all, "list"] as const,
+  list: (params?: ProductsParams) =>
+    [...FAVORITES_KEYS.lists(), params] as const,
 } as const;
 
 export const ORDER_KEYS = {
   all: ["orders"] as const,
-  history: (params?: ProductsParams) => ["orders", "history", params] as const,
+  history: () => [...ORDER_KEYS.all, "history"] as const,
+  historyList: (params?: ProductsParams) =>
+    [...ORDER_KEYS.history(), params] as const,
 } as const;
 
 // ============ CART QUERIES ============
@@ -31,7 +37,7 @@ export function useCart() {
   const { token } = useAuth();
 
   return useQuery({
-    queryKey: CART_KEYS.cart,
+    queryKey: CART_KEYS.detail(),
     queryFn: () => apiClient.getCart(),
     enabled: !!token,
     staleTime: 1000 * 60, // 1 minute
@@ -60,7 +66,7 @@ export function useAddToCart() {
     mutationFn: (data: AddToCartData) => apiClient.addToCart(data),
     onSuccess: (response) => {
       // Invalidate cart query to refetch
-      queryClient.invalidateQueries({ queryKey: CART_KEYS.cart });
+      queryClient.invalidateQueries({ queryKey: CART_KEYS.all });
 
       toast.success(response.message || "Item added to cart successfully!");
     },
@@ -91,7 +97,7 @@ export function useUpdateCartItem() {
       data: UpdateCartItemData;
     }) => apiClient.updateCartItem(productId, data),
     onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: CART_KEYS.cart });
+      queryClient.invalidateQueries({ queryKey: CART_KEYS.all });
 
       toast.success(response.message || "Cart updated successfully!");
     },
@@ -122,7 +128,7 @@ export function useRemoveFromCart() {
       variationSku?: string;
     }) => apiClient.removeFromCart(productId, variationSku),
     onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: CART_KEYS.cart });
+      queryClient.invalidateQueries({ queryKey: CART_KEYS.all });
 
       toast.success(response.message || "Item removed from cart!");
     },
@@ -141,7 +147,7 @@ export function useClearCart() {
   return useMutation({
     mutationFn: () => apiClient.clearCart(),
     onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: CART_KEYS.cart });
+      queryClient.invalidateQueries({ queryKey: CART_KEYS.all });
 
       toast.success(response.message || "Cart cleared successfully!");
     },
@@ -246,7 +252,7 @@ export function useOrderHistory(params: ProductsParams = {}) {
   const { token } = useAuth();
 
   return useQuery({
-    queryKey: ORDER_KEYS.history(params),
+    queryKey: ORDER_KEYS.historyList(params),
     queryFn: () => apiClient.getOrderHistory(params),
     enabled: !!token,
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -263,30 +269,43 @@ export function useOrderHistory(params: ProductsParams = {}) {
   });
 }
 
-// ============ UTILITY HOOKS ============
+// ============ UTILITY HOOKS (FIXED: Better error handling) ============
 
 /**
  * Hook to get cart count
  */
 export function useCartCount() {
-  const { data } = useCart();
-  return data?.data?.cartCount || 0;
+  const { data, isLoading, error } = useCart();
+
+  if (isLoading || error || !data?.data) {
+    return 0;
+  }
+
+  return data.data.cartCount || 0;
 }
 
 /**
  * Hook to get cart total
  */
 export function useCartTotal() {
-  const { data } = useCart();
-  return data?.data?.cartTotal || 0;
+  const { data, isLoading, error } = useCart();
+
+  if (isLoading || error || !data?.data) {
+    return 0;
+  }
+
+  return data.data.cartTotal || 0;
 }
 
 /**
- * Hook to check if product is in favorites
+ * Hook to check if product is in favorites (FIXED: Better error handling)
  */
 export function useIsFavorite(productId: string) {
-  const { data } = useFavorites();
-  const favorites = data?.data?.favorites || [];
+  const { data, isLoading, error } = useFavorites();
 
-  return favorites.some((fav: Product) => fav._id === productId);
+  if (isLoading || error || !data?.data?.favorites) {
+    return false;
+  }
+
+  return data.data.favorites.some((fav: Product) => fav._id === productId);
 }

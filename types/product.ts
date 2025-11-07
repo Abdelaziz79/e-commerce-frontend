@@ -53,7 +53,7 @@ export interface Product {
   dimensions?: ProductDimensions;
   weight?: number;
   weightUnit?: "kg" | "g" | "lb" | "oz";
-  relatedProducts?: string[];
+  relatedProducts?: Product[];
   warranty?: string;
   attributes?: Record<string, string>;
   createdAt: string;

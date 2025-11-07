@@ -40,13 +40,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Get query client for syncing with React Query cache
   const queryClient = useQueryClient();
 
-  // Initialize auth state from localStorage
+  // Initialize auth state from localStorage (FIXED: SSR-safe)
   useEffect(() => {
-    const storedToken = localStorage.getItem("auth_token");
-    const storedUser = localStorage.getItem("auth_user");
+    // Ensure we're on the client side
+    if (typeof window === "undefined") {
+      setIsLoading(false);
+      return;
+    }
 
-    if (storedToken && storedUser) {
-      try {
+    try {
+      const storedToken = localStorage.getItem("auth_token");
+      const storedUser = localStorage.getItem("auth_user");
+
+      if (storedToken && storedUser) {
         const userData = JSON.parse(storedUser);
         setToken(storedToken);
         setUser(userData);
@@ -54,21 +60,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Sync with React Query cache
         queryClient.setQueryData(AUTH_KEYS.user, userData);
         queryClient.setQueryData(AUTH_KEYS.token, storedToken);
-      } catch (error) {
-        console.error("Error parsing stored user data:", error);
+      }
+    } catch (error) {
+      console.error("Error parsing stored user data:", error);
+      // Clear invalid data
+      if (typeof window !== "undefined") {
         localStorage.removeItem("auth_token");
         localStorage.removeItem("auth_user");
       }
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   }, [queryClient]);
 
   const login = (userData: User, userToken: string) => {
     setUser(userData);
     setToken(userToken);
-    localStorage.setItem("auth_token", userToken);
-    localStorage.setItem("auth_user", JSON.stringify(userData));
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("auth_token", userToken);
+      localStorage.setItem("auth_user", JSON.stringify(userData));
+    }
 
     // Sync with React Query cache for devtools visibility
     queryClient.setQueryData(AUTH_KEYS.user, userData);
@@ -78,8 +90,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("auth_user");
+
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("auth_user");
+    }
 
     // Clear React Query cache
     queryClient.removeQueries({ queryKey: AUTH_KEYS.user });
@@ -88,7 +103,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const updateUser = (userData: User) => {
     setUser(userData);
-    localStorage.setItem("auth_user", JSON.stringify(userData));
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("auth_user", JSON.stringify(userData));
+    }
 
     // Sync with React Query cache
     queryClient.setQueryData(AUTH_KEYS.user, userData);

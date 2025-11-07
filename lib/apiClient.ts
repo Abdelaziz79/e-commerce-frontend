@@ -1,4 +1,4 @@
-// lib/api-client.ts
+// lib/apiClient.ts
 
 import axios, {
   AxiosError,
@@ -96,13 +96,14 @@ import {
   UpdateReviewData,
   VoteReviewResponse,
 } from "@/types/review";
+import { ApiClientError } from "./apiClientError";
+import { TokenStorage } from "./tokenStorage";
 
 // ==================== CONFIGURATION ====================
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
-const TOKEN_KEY = "auth_token";
 const REQUEST_TIMEOUT = 30000; // 30 seconds
 
 // ==================== TYPES ====================
@@ -111,105 +112,10 @@ interface RequestConfig extends AxiosRequestConfig {
   skipAuth?: boolean;
 }
 
-// ==================== ERROR HANDLING ====================
-
-export class ApiClientError extends Error {
-  constructor(
-    message: string,
-    public status?: number,
-    public validationErrors?: ValidationError[],
-    public code?: string
-  ) {
-    super(message);
-    this.name = "ApiClientError";
-    Object.setPrototypeOf(this, ApiClientError.prototype);
-  }
-
-  /**
-   * Check if error is a validation error
-   */
-  isValidationError(): boolean {
-    return !!this.validationErrors?.length;
-  }
-
-  /**
-   * Check if error is an authentication error
-   */
-  isAuthError(): boolean {
-    return this.status === 401;
-  }
-
-  /**
-   * Check if error is a permission error
-   */
-  isPermissionError(): boolean {
-    return this.status === 403;
-  }
-
-  /**
-   * Check if error is a not found error
-   */
-  isNotFoundError(): boolean {
-    return this.status === 404;
-  }
-
-  /**
-   * Check if error is a server error
-   */
-  isServerError(): boolean {
-    return !!this.status && this.status >= 500;
-  }
-
-  /**
-   * Check if error is a network error
-   */
-  isNetworkError(): boolean {
-    return !this.status;
-  }
-}
-
-// ==================== TOKEN STORAGE ====================
-
-export class TokenStorage {
-  private static instance: TokenStorage;
-  private tokenKey = TOKEN_KEY;
-
-  private constructor() {}
-
-  static getInstance(): TokenStorage {
-    if (!TokenStorage.instance) {
-      TokenStorage.instance = new TokenStorage();
-    }
-    return TokenStorage.instance;
-  }
-
-  get(): string | null {
-    if (typeof window === "undefined") return null;
-    try {
-      return localStorage.getItem(this.tokenKey);
-    } catch (error) {
-      console.warn("Failed to access localStorage:", error);
-      return null;
-    }
-  }
-
-  set(token: string): void {
-    if (typeof window === "undefined") return;
-    try {
-      localStorage.setItem(this.tokenKey, token);
-    } catch (error) {
-      console.error("Failed to store token:", error);
-    }
-  }
-
-  remove(): void {
-    if (typeof window === "undefined") return;
-    try {
-      localStorage.removeItem(this.tokenKey);
-    } catch (error) {
-      console.error("Failed to remove token:", error);
-    }
-  }
+interface RetryConfig {
+  maxRetries: number;
+  retryDelay: number;
+  retryableStatuses: number[];
 }
 
 // ==================== API CLIENT ====================
@@ -218,6 +124,11 @@ class ApiClient {
   private axiosInstance: AxiosInstance;
   private tokenStorage: TokenStorage;
   private requestQueue: Map<string, AbortController> = new Map();
+  private retryConfig: RetryConfig = {
+    maxRetries: 3,
+    retryDelay: 1000,
+    retryableStatuses: [408, 429, 500, 502, 503, 504],
+  };
 
   constructor(baseURL: string) {
     this.tokenStorage = TokenStorage.getInstance();
@@ -239,6 +150,11 @@ class ApiClient {
     // Request interceptor
     this.axiosInstance.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
+        // Development logging
+        if (process.env.NODE_ENV === "development") {
+          console.log("🚀 Request:", config.method?.toUpperCase(), config.url);
+        }
+
         // Add auth token unless explicitly skipped
         if (!config.headers?.skipAuth) {
           const token = this.tokenStorage.get();
@@ -263,7 +179,13 @@ class ApiClient {
 
     // Response interceptor
     this.axiosInstance.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        // Development logging
+        if (process.env.NODE_ENV === "development") {
+          console.log("✅ Response:", response.config.url, response.status);
+        }
+        return response;
+      },
       (error: AxiosError) => {
         const apiError = this.handleError(error);
 
@@ -378,13 +300,13 @@ class ApiClient {
   }
 
   /**
-   * Helper to create FormData or JSON body
+   * Helper to create FormData or JSON body (with better typing)
    * Handles single files, arrays of files, and regular data
    */
-  private createRequestBody(
-    data: Record<string, unknown>,
+  private createRequestBody<T extends Record<string, unknown>>(
+    data: T,
     fileFields: string[] = []
-  ): FormData | Record<string, unknown> {
+  ): FormData | T {
     // Check if any file field contains a File or File[]
     const hasFile = fileFields.some((field) => {
       const value = data[field];
@@ -801,27 +723,29 @@ class ApiClient {
   };
 
   /**
-   * Create product with file upload support
+   * Create product with file upload support (FIXED: No manual Content-Type)
    */
   createProduct = async (data: CreateProductData): Promise<ProductResponse> => {
     const body = this.createRequestBody(
       data as unknown as Record<string, unknown>,
       ["images", "mainImage"]
     );
+    // Content-Type will be automatically handled by the interceptor
     return this.request<ProductResponse>("post", "/products", body);
   };
 
   /**
-   * Update product with file upload support
+   * Update product with file upload support (FIXED: No manual Content-Type)
    */
   updateProduct = async (
     productId: string,
     data: UpdateProductData
   ): Promise<ProductResponse> => {
-    const body = this.createRequestBody(
-      data as unknown as Record<string, unknown>,
-      ["images", "mainImage"]
-    );
+    const body = this.createRequestBody(data as Record<string, unknown>, [
+      "images",
+      "mainImage",
+    ]);
+    // Content-Type will be automatically handled by the interceptor
     return this.request<ProductResponse>("put", `/products/${productId}`, body);
   };
 
@@ -834,7 +758,7 @@ class ApiClient {
     );
   };
 
-  // ==================== CATEGORY ENDPOINTS ====================
+  // ==================== CATEGORY ENDPOINTS (FIXED) ====================
 
   getCategories = async (
     params: CategoriesParams = {}
@@ -880,6 +804,7 @@ class ApiClient {
     return this.request<CategoryResponse>("get", `/categories/${id}`);
   };
 
+  // FIXED: Removed manual Content-Type header
   createCategory = async (
     data: CreateCategoryData
   ): Promise<CategoryResponse> => {
@@ -887,14 +812,11 @@ class ApiClient {
       data as unknown as Record<string, unknown>,
       ["image"]
     );
-    return this.request<CategoryResponse>("post", "/categories", body, {
-      headers:
-        body instanceof FormData
-          ? { "Content-Type": "multipart/form-data" }
-          : undefined,
-    });
+    // Content-Type will be automatically handled by the interceptor
+    return this.request<CategoryResponse>("post", "/categories", body);
   };
 
+  // FIXED: Removed manual Content-Type header
   updateCategory = async (
     categoryId: string,
     data: UpdateCategoryData
@@ -902,16 +824,11 @@ class ApiClient {
     const body = this.createRequestBody(data as Record<string, unknown>, [
       "image",
     ]);
+    // Content-Type will be automatically handled by the interceptor
     return this.request<CategoryResponse>(
       "put",
       `/categories/${categoryId}`,
-      body,
-      {
-        headers:
-          body instanceof FormData
-            ? { "Content-Type": "multipart/form-data" }
-            : undefined,
-      }
+      body
     );
   };
 
@@ -928,7 +845,7 @@ class ApiClient {
     );
   };
 
-  // ==================== BRAND ENDPOINTS ====================
+  // ==================== BRAND ENDPOINTS (FIXED) ====================
 
   getBrands = async (
     params: BrandsParams = {}
@@ -974,19 +891,17 @@ class ApiClient {
     return this.request<BrandResponse>("get", `/brands/${id}`);
   };
 
+  // FIXED: Removed manual Content-Type header
   createBrand = async (data: CreateBrandData): Promise<BrandResponse> => {
     const body = this.createRequestBody(
       data as unknown as Record<string, unknown>,
       ["logo"]
     );
-    return this.request<BrandResponse>("post", "/brands", body, {
-      headers:
-        body instanceof FormData
-          ? { "Content-Type": "multipart/form-data" }
-          : undefined,
-    });
+    // Content-Type will be automatically handled by the interceptor
+    return this.request<BrandResponse>("post", "/brands", body);
   };
 
+  // FIXED: Removed manual Content-Type header
   updateBrand = async (
     brandId: string,
     data: UpdateBrandData
@@ -994,12 +909,8 @@ class ApiClient {
     const body = this.createRequestBody(data as Record<string, unknown>, [
       "logo",
     ]);
-    return this.request<BrandResponse>("put", `/brands/${brandId}`, body, {
-      headers:
-        body instanceof FormData
-          ? { "Content-Type": "multipart/form-data" }
-          : undefined,
-    });
+    // Content-Type will be automatically handled by the interceptor
+    return this.request<BrandResponse>("put", `/brands/${brandId}`, body);
   };
 
   deleteBrand = async (brandId: string): Promise<void> => {
@@ -1091,6 +1002,7 @@ class ApiClient {
       `/reviews/stats/${productId}`
     );
   };
+
   // ==================== ORDER ENDPOINTS ====================
 
   createOrder = async (data: CreateOrderData): Promise<OrderResponse> => {

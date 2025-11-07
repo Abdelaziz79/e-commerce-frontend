@@ -1,5 +1,5 @@
 // hooks/use-product-queries.ts
-import { apiClient } from "@/lib/api-client";
+import { apiClient } from "@/lib/apiClient";
 import {
   LowStockParams,
   ProductsParams,

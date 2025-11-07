@@ -41,27 +41,23 @@ export function ReviewDialog({ productId, children }: ReviewDialogProps) {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
 
-    // Limit to 5 images
     if (images.length + files.length > 5) {
-      toast.error("You can upload a maximum of 5 images");
+      toast.error("Maximum 5 images allowed");
       return;
     }
 
-    // Validate file types
     const validFiles = files.filter((file) => {
       if (!file.type.startsWith("image/")) {
-        toast.error(`${file.name} is not an image file`);
+        toast.error(`${file.name} is not an image`);
         return false;
       }
-      // Limit file size to 5MB
       if (file.size > 5 * 1024 * 1024) {
-        toast.error(`${file.name} is too large. Max size is 5MB`);
+        toast.error(`${file.name} exceeds 5MB limit`);
         return false;
       }
       return true;
     });
 
-    // Create previews
     const newPreviews: string[] = [];
     validFiles.forEach((file) => {
       const reader = new FileReader();
@@ -98,12 +94,12 @@ export function ReviewDialog({ productId, children }: ReviewDialogProps) {
     e.preventDefault();
 
     if (rating === 0) {
-      toast.error("Please select a rating by clicking a star.");
+      toast.error("Please select a rating");
       return;
     }
 
     if (comment.trim().length < 10) {
-      toast.error("Review comment must be at least 10 characters long.");
+      toast.error("Review must be at least 10 characters");
       return;
     }
 
@@ -117,7 +113,7 @@ export function ReviewDialog({ productId, children }: ReviewDialogProps) {
 
     createReviewMutation.mutate(reviewData, {
       onSuccess: () => {
-        toast.success("Thank you! Your review has been submitted.");
+        toast.success("Review submitted successfully");
         setIsOpen(false);
         resetForm();
       },
@@ -133,27 +129,29 @@ export function ReviewDialog({ productId, children }: ReviewDialogProps) {
       }}
     >
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Write a Review</DialogTitle>
-          <DialogDescription>
-            Share your experience to help others make informed decisions.
+          <DialogTitle className="text-lg font-semibold">
+            Write a Review
+          </DialogTitle>
+          <DialogDescription className="text-sm text-gray-600">
+            Share your experience with this product
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6 pt-4">
-          {/* Rating Section */}
-          <div className="space-y-3">
-            <Label className="text-base font-semibold">
-              Rate this product <span className="text-red-500">*</span>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+          {/* Rating */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">
+              Rating <span className="text-red-500">*</span>
             </Label>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               {[1, 2, 3, 4, 5].map((star) => (
                 <Star
                   key={star}
-                  className={`h-8 w-8 cursor-pointer transition-all duration-200 ${
+                  className={`h-6 w-6 cursor-pointer transition-colors ${
                     (hoverRating || rating) >= star
-                      ? "text-yellow-400 fill-yellow-400 scale-110"
+                      ? "text-gray-900 fill-gray-900"
                       : "text-gray-300 hover:text-gray-400"
                   }`}
                   onClick={() => setRating(star)}
@@ -162,26 +160,26 @@ export function ReviewDialog({ productId, children }: ReviewDialogProps) {
                 />
               ))}
               {rating > 0 && (
-                <span className="ml-2 text-sm font-medium text-gray-700">
+                <span className="ml-2 text-xs text-gray-600 font-medium">
                   {rating === 5
-                    ? "Excellent!"
+                    ? "Excellent"
                     : rating === 4
                     ? "Good"
                     : rating === 3
                     ? "Average"
                     : rating === 2
                     ? "Poor"
-                    : "Terrible"}
+                    : "Bad"}
                 </span>
               )}
             </div>
           </div>
 
-          {/* Title Input */}
+          {/* Title */}
           <div className="space-y-2">
-            <Label htmlFor="title" className="text-base font-semibold">
-              Review Title{" "}
-              <span className="text-gray-500 text-sm font-normal">
+            <Label htmlFor="title" className="text-sm font-medium">
+              Title{" "}
+              <span className="text-gray-400 text-xs font-normal">
                 (Optional)
               </span>
             </Label>
@@ -189,72 +187,67 @@ export function ReviewDialog({ productId, children }: ReviewDialogProps) {
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Summarize your experience in a few words"
+              placeholder="Sum up your experience"
               maxLength={100}
-              className="text-base"
+              className="text-sm h-10"
             />
-            <p className="text-xs text-gray-500">
-              {title.length}/100 characters
-            </p>
           </div>
 
-          {/* Comment Textarea */}
+          {/* Comment */}
           <div className="space-y-2">
-            <Label htmlFor="comment" className="text-base font-semibold">
-              Your Review <span className="text-red-500">*</span>
+            <Label htmlFor="comment" className="text-sm font-medium">
+              Review <span className="text-red-500">*</span>
             </Label>
             <Textarea
               id="comment"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Share details about your experience with this product. What did you like or dislike? How would you use it?"
-              rows={6}
+              placeholder="Share your thoughts about this product"
+              rows={4}
               minLength={10}
               required
-              className="text-base resize-none"
+              className="text-sm resize-none"
             />
             <p className="text-xs text-gray-500">
-              Minimum 10 characters ({comment.length} characters)
+              {comment.length}/10 characters minimum
             </p>
           </div>
 
-          {/* Image Upload Section */}
-          <div className="space-y-3">
-            <Label className="text-base font-semibold">
-              Add Photos{" "}
-              <span className="text-gray-500 text-sm font-normal">
-                (Optional, max 5)
+          {/* Images */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">
+              Photos{" "}
+              <span className="text-gray-400 text-xs font-normal">
+                (Optional)
               </span>
             </Label>
 
-            {/* Image Previews */}
             {imagePreviews.length > 0 && (
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+              <div className="grid grid-cols-5 gap-2">
                 {imagePreviews.map((preview, index) => (
                   <div
                     key={index}
-                    className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200 group"
+                    className="relative aspect-square rounded-md overflow-hidden border border-gray-200 group"
                   >
                     <Image
                       src={preview}
                       alt={`Preview ${index + 1}`}
                       fill
                       className="object-cover"
-                      sizes="(max-width: 640px) 33vw, 20vw"
+                      sizes="80px"
                     />
                     <button
                       type="button"
                       onClick={() => removeImage(index)}
-                      className="absolute top-1 right-1 z-10 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                      className="absolute top-1 right-1 p-0.5 bg-white rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-3 h-3 text-gray-600" />
                     </button>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Upload Button */}
             {images.length < 5 && (
               <div>
                 <input
@@ -270,15 +263,12 @@ export function ReviewDialog({ productId, children }: ReviewDialogProps) {
                   type="button"
                   variant="outline"
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full border-dashed border-2 h-24 hover:bg-gray-50"
+                  className="w-full h-20 border-dashed text-sm"
                 >
-                  <div className="flex flex-col items-center gap-2">
-                    <Upload className="w-6 h-6 text-gray-400" />
-                    <span className="text-sm text-gray-600">
-                      Click to upload images
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      PNG, JPG up to 5MB each
+                  <div className="flex flex-col items-center gap-1">
+                    <Upload className="w-4 h-4 text-gray-400" />
+                    <span className="text-xs text-gray-600">
+                      Upload images (max 5MB each)
                     </span>
                   </div>
                 </Button>
@@ -286,11 +276,12 @@ export function ReviewDialog({ productId, children }: ReviewDialogProps) {
             )}
           </div>
 
-          {/* Submit Button */}
-          <DialogFooter className="gap-2 sm:gap-0">
+          {/* Submit */}
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 setIsOpen(false);
                 resetForm();
@@ -301,16 +292,16 @@ export function ReviewDialog({ productId, children }: ReviewDialogProps) {
             </Button>
             <Button
               type="submit"
+              size="sm"
               disabled={
                 createReviewMutation.isPending ||
                 rating === 0 ||
                 comment.trim().length < 10
               }
-              className="min-w-[120px]"
             >
               {createReviewMutation.isPending ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                   Submitting...
                 </>
               ) : (

@@ -1,5 +1,5 @@
 // hooks/use-category-hooks.ts
-import { apiClient } from "@/lib/api-client";
+import { apiClient } from "@/lib/apiClient";
 import { ApiError } from "@/types/auth";
 import {
   CategoriesParams,
@@ -7,7 +7,12 @@ import {
   CreateCategoryData,
   UpdateCategoryData,
 } from "@/types/category";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
 
 // Query Keys
@@ -40,9 +45,45 @@ export function useCategories(
       isAdmin
         ? apiClient.getAdminCategories(params)
         : apiClient.getCategories(params),
-    staleTime: 30000, // Consider data fresh for 30 seconds
-    gcTime: 5 * 60 * 1000, // Keep unused data in cache for 5 minutes (formerly cacheTime)
-    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    staleTime: 30000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+// --- HOOK FOR INFINITE LOADING ---
+export function useInfiniteCategories(
+  params: Omit<CategoriesParams, "page"> = {},
+  options: { isAdmin?: boolean } = {}
+) {
+  const { isAdmin = false } = options;
+
+  return useInfiniteQuery({
+    queryKey: [
+      ...CATEGORY_KEYS.lists(),
+      { ...params, isAdmin, infinite: true },
+    ],
+    queryFn: ({ pageParam = 1 }) => {
+      const queryParams = { ...params, page: pageParam as number };
+      return isAdmin
+        ? apiClient.getAdminCategories(queryParams)
+        : apiClient.getCategories(queryParams);
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      // Calculate the total number of items fetched so far
+      const totalFetched = allPages.reduce(
+        (acc, page) => acc + page.results,
+        0
+      );
+      // If the number of items we've fetched is less than the total available, there's a next page
+      if (totalFetched < lastPage.total) {
+        return allPages.length + 1;
+      }
+      return undefined; // No more pages
+    },
+    staleTime: 30000,
+    gcTime: 5 * 60 * 1000,
   });
 }
 

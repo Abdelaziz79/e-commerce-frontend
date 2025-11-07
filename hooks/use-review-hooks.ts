@@ -1,6 +1,6 @@
 // hooks/use-review-hooks.ts
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
+import { apiClient } from "@/lib/apiClient";
 import {
   CreateReviewData,
   PaginatedReviewsResponse,
@@ -11,6 +11,7 @@ import {
 import { ApiError } from "@/types/auth";
 import { toast } from "sonner";
 import { PRODUCT_KEYS } from "./use-product-queries";
+import { useAuth } from "./auth-context";
 
 // Query Keys
 export const REVIEW_KEYS = {
@@ -99,14 +100,26 @@ export function useUpdateReview() {
       data: UpdateReviewData;
     }) => apiClient.updateReview(reviewId, data),
     onSuccess: (response) => {
-      const productId = response.data.review.product;
+      const productField = response.data.review.product;
+      const productId =
+        typeof productField === "string"
+          ? productField
+          : (productField && (productField._id || productField.id)) || "";
+
       queryClient.invalidateQueries({ queryKey: REVIEW_KEYS.all });
-      queryClient.invalidateQueries({
-        queryKey: PRODUCT_KEYS.detail(productId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: REVIEW_KEYS.stats(productId),
-      });
+
+      if (productId) {
+        queryClient.invalidateQueries({
+          queryKey: PRODUCT_KEYS.detail(productId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: REVIEW_KEYS.stats(productId),
+        });
+      } else {
+        // fallback: invalidate all products if product id unavailable
+        queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.all });
+      }
+
       toast.success("Review updated successfully!");
     },
     onError: (error: ApiError) =>
@@ -128,11 +141,17 @@ export function useDeleteReview() {
   });
 }
 
+// FIXED: Use real user ID for optimistic updates
 export function useVoteReviewHelpful() {
   const queryClient = useQueryClient();
+  const { user } = useAuth(); // Get current user
+
   return useMutation({
     mutationFn: (reviewId: string) => apiClient.voteReviewHelpful(reviewId),
     onMutate: async (reviewId) => {
+      // Don't proceed with optimistic update if no user
+      if (!user?._id) return { previousReviews: [] };
+
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: REVIEW_KEYS.all });
 
@@ -144,7 +163,7 @@ export function useVoteReviewHelpful() {
       // Optimistically update all review queries
       queryClient.setQueriesData(
         { queryKey: REVIEW_KEYS.all },
-        (old: PaginatedReviewsResponse) => {
+        (old: PaginatedReviewsResponse | undefined) => {
           if (!old?.data?.reviews) return old;
 
           return {
@@ -155,11 +174,12 @@ export function useVoteReviewHelpful() {
                 review._id === reviewId
                   ? {
                       ...review,
-                      helpfulVotes: review.helpfulVotedBy?.includes(
-                        "current-user"
-                      )
+                      helpfulVotes: review.helpfulVotedBy?.includes(user._id)
                         ? review.helpfulVotes - 1
                         : review.helpfulVotes + 1,
+                      helpfulVotedBy: review.helpfulVotedBy?.includes(user._id)
+                        ? review.helpfulVotedBy.filter((id) => id !== user._id)
+                        : [...(review.helpfulVotedBy || []), user._id],
                     }
                   : review
               ),
@@ -179,7 +199,7 @@ export function useVoteReviewHelpful() {
       }
       toast.error(error.message || "Failed to vote");
     },
-    onSettled: (_data, _error, _reviewId) => {
+    onSettled: () => {
       // Refetch to ensure consistency
       queryClient.invalidateQueries({ queryKey: REVIEW_KEYS.all });
     },

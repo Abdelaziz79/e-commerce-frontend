@@ -1,5 +1,6 @@
-// src/components/products/product-page/ProductVariations.tsx
 import { ProductVariation } from "@/types/product";
+import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
 
 interface ProductVariationsProps {
   variations: ProductVariation[];
@@ -14,31 +15,81 @@ export function ProductVariations({
 }: ProductVariationsProps) {
   if (!variations || variations.length === 0) return null;
 
+  const getVariationLabel = (v: ProductVariation) => {
+    const parts = [v.color, v.size, v.style].filter(Boolean);
+    return parts.length > 0 ? parts.join(" · ") : v.sku;
+  };
+
   return (
-    <div className="mb-6">
-      <h3 className="text-sm font-medium text-gray-800 mb-3">
-        Select Variation
-      </h3>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {variations.map((v) => (
-          <button
-            key={v._id}
-            onClick={() => onSelectVariation(v._id!)}
-            disabled={v.countInStock === 0}
-            className={`p-3 border rounded-lg text-sm transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed ${
-              selectedVariationId === v._id
-                ? "border-black bg-gray-50 ring-2 ring-black"
-                : "border-gray-300 hover:border-gray-500"
-            }`}
-          >
-            <div className="font-medium truncate">
-              {[v.color, v.size, v.style].filter(Boolean).join(" - ") || v.sku}
-            </div>
-            <div className="text-xs text-gray-600 mt-1">
-              ${v.price.toFixed(2)} • Stock: {v.countInStock}
-            </div>
-          </button>
-        ))}
+    <div className="space-y-3.5">
+      <h3 className="text-sm font-semibold text-gray-900">Select Options</h3>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        {variations.map((v) => {
+          const isSelected = selectedVariationId === v._id;
+          const isOutOfStock = v.countInStock === 0;
+
+          return (
+            <button
+              key={v._id}
+              onClick={() => !isOutOfStock && onSelectVariation(v._id!)}
+              disabled={isOutOfStock}
+              className={cn(
+                "relative p-3.5 rounded-lg border text-left transition-all",
+                isSelected
+                  ? "border-gray-900 bg-gray-50"
+                  : isOutOfStock
+                  ? "border-gray-200 bg-gray-50/50 opacity-50 cursor-not-allowed"
+                  : "border-gray-200 hover:border-gray-300 hover:bg-gray-50/50"
+              )}
+            >
+              {/* Checkmark for selected */}
+              {isSelected && (
+                <div className="absolute top-3 right-3 w-4 h-4 bg-gray-900 rounded-full flex items-center justify-center">
+                  <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                </div>
+              )}
+
+              {/* Variation label */}
+              <div
+                className={cn(
+                  "font-medium text-sm mb-1.5 pr-6",
+                  isSelected ? "text-gray-900" : "text-gray-700"
+                )}
+              >
+                {getVariationLabel(v)}
+              </div>
+
+              {/* Price and stock info */}
+              <div className="flex items-center justify-between text-xs gap-2">
+                <span
+                  className={cn(
+                    "font-semibold",
+                    isSelected ? "text-gray-900" : "text-gray-600"
+                  )}
+                >
+                  ${v.price.toFixed(2)}
+                </span>
+                <span
+                  className={cn(
+                    "font-medium",
+                    isOutOfStock
+                      ? "text-red-600"
+                      : v.countInStock < 10
+                      ? "text-orange-600"
+                      : "text-gray-500"
+                  )}
+                >
+                  {isOutOfStock
+                    ? "Out of stock"
+                    : v.countInStock < 10
+                    ? `${v.countInStock} left`
+                    : `${v.countInStock} available`}
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
