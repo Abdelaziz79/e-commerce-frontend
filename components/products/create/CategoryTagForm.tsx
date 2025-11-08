@@ -1,4 +1,4 @@
-// app/admin/products/add/components/CategoryTagForm.tsx
+// app/admin/products/create/components/CategoryTagForm.tsx
 "use client";
 
 import { Badge } from "@/components/ui/badge";

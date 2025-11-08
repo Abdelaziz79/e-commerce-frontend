@@ -12,7 +12,12 @@ import {
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn, getImageSrc } from "@/lib/utils";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Image as ImageIconLucide,
+} from "lucide-react";
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 
@@ -36,7 +41,6 @@ export function ProductImageCarousel({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [api, setApi] = useState<CarouselApi>();
 
-  // This effect synchronizes the external state (selectedIndex) with the carousel's internal state.
   useEffect(() => {
     if (!api) return;
 
@@ -45,8 +49,6 @@ export function ProductImageCarousel({
     };
 
     api.on("select", onSelect);
-
-    // Initial sync
     onSelect();
 
     return () => {
@@ -54,8 +56,6 @@ export function ProductImageCarousel({
     };
   }, [api]);
 
-  // This effect ensures that if the selectedIndex is changed from outside the carousel (e.g., by clicking a thumbnail),
-  // the carousel smoothly scrolls to that item.
   const scrollTo = useCallback(
     (index: number) => {
       api?.scrollTo(index);
@@ -76,7 +76,6 @@ export function ProductImageCarousel({
     setIsModalOpen(true);
   };
 
-  // Use the carousel's built-in navigation methods for smooth, looped scrolling.
   const handlePrevious = useCallback(() => {
     api?.scrollPrev();
   }, [api]);
@@ -87,8 +86,8 @@ export function ProductImageCarousel({
 
   return (
     <>
-      <div className="space-y-3">
-        {/* Main component carousel */}
+      <div className="space-y-4">
+        {/* Main Carousel */}
         <div className="relative group">
           <Carousel className="w-full" opts={{ loop: true }} setApi={setApi}>
             <CarouselContent>
@@ -98,13 +97,15 @@ export function ProductImageCarousel({
                 return (
                   <CarouselItem key={index}>
                     <div
-                      className="relative aspect-square bg-white rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:border-gray-300 transition-all"
+                      className="relative aspect-square bg-white rounded-lg overflow-hidden  cursor-pointer transition-all hover:shadow-md"
                       onClick={() => openModal(index)}
                     >
                       {hasError ? (
-                        <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50">
-                          <ImageIcon className="w-10 h-10 text-gray-300" />
-                          <p className="mt-2 text-xs text-gray-400">No image</p>
+                        <div className="w-full h-full flex flex-col items-center justify-center ">
+                          <ImageIconLucide className="w-10 h-10 text-gray-300" />
+                          <p className="mt-2 text-xs font-medium text-gray-400">
+                            No image
+                          </p>
                         </div>
                       ) : (
                         <Image
@@ -124,54 +125,79 @@ export function ProductImageCarousel({
             </CarouselContent>
             {images.length > 1 && (
               <>
-                <CarouselPrevious className="left-2" />
-                <CarouselNext className="right-2" />
+                <CarouselPrevious className="left-3 h-9 w-9 border-gray-200 bg-white hover:bg-gray-50 text-gray-700" />
+                <CarouselNext className="right-3 h-9 w-9 border-gray-200 bg-white hover:bg-gray-50 text-gray-700" />
               </>
             )}
           </Carousel>
         </div>
 
-        {/* Image Counter and Dots - Below Carousel */}
+        {/* Thumbnail Grid */}
         {images.length > 1 && (
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-1.5">
-              {images.map((_, index) => (
+          <div className="grid grid-cols-5 gap-2">
+            {images.map((image, index) => {
+              const imageSrc = getImageSrc(image);
+              const hasError = imageErrors[index];
+              const isSelected = selectedIndex === index;
+
+              return (
                 <button
                   key={index}
                   onClick={() => scrollTo(index)}
                   className={cn(
-                    "h-1.5 rounded-full transition-all",
-                    selectedIndex === index
-                      ? "w-6 bg-gray-900"
-                      : "w-1.5 bg-gray-300 hover:bg-gray-400"
+                    "relative aspect-square rounded-lg overflow-hidden border transition-all",
+                    isSelected
+                      ? "border-gray-900 "
+                      : "border-gray-200 hover:border-gray-300"
                   )}
-                  aria-label={`Go to image ${index + 1}`}
-                />
-              ))}
-            </div>
-            <div className="text-gray-600 text-xs font-medium">
-              {selectedIndex + 1} / {images.length}
-            </div>
+                >
+                  {hasError ? (
+                    <div className="w-full h-full flex items-center justify-center ">
+                      <ImageIconLucide className="w-4 h-4 text-gray-300" />
+                    </div>
+                  ) : (
+                    <Image
+                      src={imageSrc}
+                      alt={`Thumbnail ${index + 1}`}
+                      fill
+                      className="object-contain p-1.5 bg-white"
+                      sizes="100px"
+                      onError={() => handleImageError(index)}
+                    />
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Full Screen Dialog */}
+      {/* Full Screen Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="!max-w-none w-screen h-screen bg-white p-0 m-0 flex flex-col lg:flex-row">
           <VisuallyHidden>
             <DialogTitle>{productName} - Image Gallery</DialogTitle>
           </VisuallyHidden>
 
+          {/* Close Button */}
+          <Button
+            onClick={() => setIsModalOpen(false)}
+            size="icon"
+            variant="ghost"
+            className="absolute right-4 top-4 z-50 h-9 w-9 rounded-lg bg-white/90 backdrop-blur-sm hover:bg-gray-100 border border-gray-200"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+
           {/* Main Image Viewer */}
-          <div className="flex-1 relative flex items-center justify-center">
+          <div className="flex-1 relative flex items-center justify-center ">
             {images.length > 1 && (
               <>
                 <Button
                   onClick={handlePrevious}
                   size="icon"
                   variant="secondary"
-                  className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 h-10 w-10 sm:h-11 sm:w-11 rounded-full shadow-md z-10 bg-white hover:bg-gray-50"
+                  className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 h-10 w-10 sm:h-11 sm:w-11 rounded-lg shadow-md z-10 bg-white hover:bg-gray-50 border border-gray-200"
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </Button>
@@ -179,7 +205,7 @@ export function ProductImageCarousel({
                   onClick={handleNext}
                   size="icon"
                   variant="secondary"
-                  className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 h-10 w-10 sm:h-11 sm:w-11 rounded-full shadow-md z-10 bg-white hover:bg-gray-50"
+                  className="absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 h-10 w-10 sm:h-11 sm:w-11 rounded-lg shadow-md z-10 bg-white hover:bg-gray-50 border border-gray-200"
                 >
                   <ChevronRight className="h-5 w-5" />
                 </Button>
@@ -192,8 +218,8 @@ export function ProductImageCarousel({
                 const hasError = imageErrors[selectedIndex];
                 return hasError ? (
                   <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
-                    <ImageIcon className="w-20 h-20 mb-3" />
-                    <p className="text-sm">Image not available</p>
+                    <ImageIconLucide className="w-20 h-20 mb-3" />
+                    <p className="text-sm font-medium">Image not available</p>
                   </div>
                 ) : (
                   <Image
@@ -208,43 +234,56 @@ export function ProductImageCarousel({
                 );
               })()}
             </div>
+
+            {/* Image Counter - Overlay on main image */}
+            {images.length > 1 && (
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+                <span className="text-xs font-semibold text-gray-900">
+                  {selectedIndex + 1} / {images.length}
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* Sidebar on Desktop / Bottom Panel on Mobile */}
+          {/* Sidebar - Desktop / Bottom Panel - Mobile */}
           <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-gray-200 flex flex-col flex-shrink-0 bg-white">
-            <div className="p-5 sm:p-6 border-b border-gray-200">
+            {/* Product Info */}
+            <div className="p-5 sm:p-6 border-b border-gray-200 space-y-2">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {productName}
+              </h2>
               {price && (
                 <p className="text-xl font-bold text-gray-900">{price}</p>
               )}
-              <h2 className="text-lg font-semibold mt-1 text-gray-900">
-                {productName}
-              </h2>
               {description && (
-                <p className="text-xs text-gray-600 mt-1.5 line-clamp-2">
+                <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
                   {description}
                 </p>
               )}
             </div>
 
+            {/* Thumbnail Grid */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-5">
               <div className="grid grid-cols-4 lg:grid-cols-3 gap-2.5">
                 {images.map((image, index) => {
                   const imageSrc = getImageSrc(image);
                   const hasError = imageErrors[index];
+                  const isSelected = selectedIndex === index;
+
                   return (
                     <button
                       key={index}
                       onClick={() => scrollTo(index)}
                       className={cn(
-                        "relative aspect-square rounded-md overflow-hidden border bg-white transition-all",
-                        selectedIndex === index
-                          ? "border-gray-900  ring-offset-2"
+                        "relative aspect-square rounded-lg overflow-hidden border bg-white transition-all",
+                        isSelected
+                          ? "border-gray-900"
                           : "border-gray-200 hover:border-gray-300"
                       )}
                     >
                       {hasError ? (
-                        <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                          <ImageIcon className="w-5 h-5 text-gray-300" />
+                        <div className="w-full h-full flex items-center justify-center ">
+                          <ImageIconLucide className="w-5 h-5 text-gray-300" />
                         </div>
                       ) : (
                         <Image

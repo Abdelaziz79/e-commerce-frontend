@@ -1,8 +1,7 @@
+import { cn, getImageSrc } from "@/lib/utils";
+import { ImageIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { ImageIcon } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { cn, getImageSrc } from "@/lib/utils";
 
 interface ProductImageProps {
   currentImage: string;
@@ -32,14 +31,14 @@ export function ProductImage({
   return (
     <div
       className={cn(
-        "relative overflow-hidden bg-white",
+        "group relative overflow-hidden bg-neutral-50/50",
         view === "grid" ? "aspect-square w-full" : "aspect-square w-full"
       )}
     >
       <Link href={`/products/${slug}`} className="block relative w-full h-full">
         {imageError ? (
-          <div className="flex h-full w-full items-center justify-center bg-gray-50">
-            <ImageIcon className="h-16 w-16 text-gray-300" />
+          <div className="flex h-full w-full items-center justify-center">
+            <ImageIcon className="h-10 w-10 text-neutral-300" />
           </div>
         ) : (
           <Image
@@ -48,8 +47,8 @@ export function ProductImage({
             fill
             sizes={sizes}
             className={cn(
-              "object-contain transition-transform duration-300 group-hover:scale-105",
-              view === "grid" ? "p-4" : "p-3"
+              "object-contain mix-blend-multiply",
+              view === "grid" ? "p-8" : "p-4"
             )}
             onError={onImageError}
             priority={view === "grid"}
@@ -57,40 +56,30 @@ export function ProductImage({
         )}
       </Link>
 
-      {/* Badges */}
+      {/* Single minimal badge for the most important info */}
       <div
         className={cn(
-          "absolute flex z-10",
-          view === "grid"
-            ? "top-3 left-3 flex-col gap-2"
-            : "top-2 left-2 flex-wrap gap-1.5 max-w-[calc(100%-1rem)]"
+          "absolute z-10",
+          view === "grid" ? "top-3 left-3" : "top-2 left-2"
         )}
       >
-        {discountPercentage > 0 && (
-          <Badge
+        {discountPercentage > 0 ? (
+          <div
             className={cn(
-              "bg-red-500 hover:bg-red-600 text-white border-0 font-medium",
-              view === "grid" ? "px-2 py-0.5 text-xs" : "px-2 py-0.5 text-xs"
+              "inline-flex items-center justify-center min-w-[2rem] h-8 px-2.5 bg-white text-neutral-900 font-semibold text-xs rounded-full shadow-sm"
             )}
           >
             -{discountPercentage}%
-          </Badge>
-        )}
-        {isNewProduct && (
-          <Badge
-            className={cn(
-              "bg-blue-500 hover:bg-blue-600 text-white border-0 font-medium",
-              view === "grid" ? "px-2 py-0.5 text-xs" : "px-2 py-0.5 text-xs"
-            )}
-          >
-            NEW
-          </Badge>
-        )}
-        {featured && view === "grid" && (
-          <Badge className="bg-purple-500 hover:bg-purple-600 text-white border-0 font-medium px-2 py-0.5 text-xs">
+          </div>
+        ) : isNewProduct ? (
+          <div className="inline-flex items-center justify-center h-8 px-2.5 bg-white text-neutral-900 font-semibold text-xs rounded-full shadow-sm">
+            New
+          </div>
+        ) : featured && view === "grid" ? (
+          <div className="inline-flex items-center justify-center h-8 px-2.5 bg-white text-neutral-900 font-semibold text-xs rounded-full shadow-sm">
             Featured
-          </Badge>
-        )}
+          </div>
+        ) : null}
       </div>
     </div>
   );

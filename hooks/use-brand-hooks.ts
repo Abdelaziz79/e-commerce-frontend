@@ -14,6 +14,8 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useDebounce } from "./use-debounce";
+import { useMemo } from "react";
 
 // Query Keys
 export const BRAND_KEYS = {
@@ -176,3 +178,77 @@ export function useToggleBrandActiveStatus() {
       toast.error(error.message || "Failed to toggle brand status"),
   });
 }
+
+/**
+ * NEW HOOK: Combines infinite loading and search for brands in the admin context.
+ * This hook consumes the existing hooks (useInfiniteBrands, useSearchBrands, useBrand)
+ * to provide a simple interface for searchable select components.
+ */
+export const useSearchableInfiniteAdminBrands = (
+  searchTerm: string,
+  selectedId: string | null
+) => {
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
+  // Use your existing hook for infinite loading in an admin context
+  const {
+    data: brandsData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: isInfiniteLoading,
+  } = useInfiniteBrands({ limit: 20 }, { isAdmin: true });
+
+  // Use your existing hook for searching in an admin context
+  const { data: searchResults, isLoading: isSearching } = useSearchBrands(
+    { q: debouncedSearch },
+    { isAdmin: true, enabled: debouncedSearch.length > 0 }
+  );
+
+  // Use your existing hook to fetch the single selected item if its data is needed
+  const { data: selectedBrandData } = useBrand(selectedId || "");
+
+  // Memoize the flattened list of all brands fetched via infinite scroll
+  const allItems = useMemo(
+    () => brandsData?.pages.flatMap((page) => page.data.brands) ?? [],
+    [brandsData]
+  );
+
+  // This is the core logic that solves the display issue.
+  // It constructs the final list of items to be displayed in the dropdown.
+  const items = useMemo(() => {
+    // 1. Determine the primary list to show (either search results or the paginated list)
+    const primaryList =
+      debouncedSearch && searchResults?.data.brands
+        ? searchResults.data.brands
+        : allItems;
+
+    // 2. Check if the currently selected item is already present in that primary list.
+    const isSelectedInPrimaryList = primaryList.some(
+      (item) => item._id === selectedId
+    );
+
+    // 3. If a specific item is selected, but it's NOT in the current list
+    //    (e.g., after a search is cleared), AND we have successfully fetched its data individually...
+    if (
+      selectedId &&
+      !isSelectedInPrimaryList &&
+      selectedBrandData?.data?.brand
+    ) {
+      // 4. ...then prepend it to the list. This is the key fix. It guarantees
+      //    the SearchableSelect component can find the item's name to display it.
+      return [selectedBrandData.data.brand, ...primaryList];
+    }
+
+    // 5. Otherwise, just return the primary list as is.
+    return primaryList;
+  }, [debouncedSearch, searchResults, allItems, selectedId, selectedBrandData]);
+
+  return {
+    items,
+    fetchNextPage,
+    hasNextPage: hasNextPage && !debouncedSearch,
+    isFetchingNextPage,
+    isLoading: isInfiniteLoading || (debouncedSearch.length > 0 && isSearching),
+  };
+};

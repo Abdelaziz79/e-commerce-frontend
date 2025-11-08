@@ -14,6 +14,8 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useDebounce } from "./use-debounce";
+import { useMemo } from "react";
 
 // Query Keys
 export const CATEGORY_KEYS = {
@@ -184,3 +186,83 @@ export function useToggleCategoryActiveStatus() {
       toast.error(error.message || "Failed to toggle category status"),
   });
 }
+
+/**
+ * NEW HOOK: Combines infinite loading and search for categories in the admin context.
+ * This hook consumes the existing hooks (useInfiniteCategories, useSearchCategories, useCategory)
+ * to provide a simple interface for searchable select components.
+ */
+export const useSearchableInfiniteAdminCategories = (
+  searchTerm: string,
+  selectedId: string | null
+) => {
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
+  // Use your existing hook for infinite loading in an admin context
+  const {
+    data: categoriesData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: isInfiniteLoading,
+  } = useInfiniteCategories({ limit: 20 }, { isAdmin: true });
+
+  // Use your existing hook for searching in an admin context
+  const { data: searchResults, isLoading: isSearching } = useSearchCategories(
+    { q: debouncedSearch },
+    { isAdmin: true, enabled: debouncedSearch.length > 0 }
+  );
+
+  // Use your existing hook to fetch the single selected item if its data is needed
+  const { data: selectedCategoryData } = useCategory(selectedId || "");
+
+  // Memoize the flattened list of all categories fetched via infinite scroll
+  const allItems = useMemo(
+    () => categoriesData?.pages.flatMap((page) => page.data.categories) ?? [],
+    [categoriesData]
+  );
+
+  // This is the core logic that solves the display issue.
+  // It constructs the final list of items to be displayed in the dropdown.
+  const items = useMemo(() => {
+    // 1. Determine the primary list to show (either search results or the paginated list)
+    const primaryList =
+      debouncedSearch && searchResults?.data.categories
+        ? searchResults.data.categories
+        : allItems;
+
+    // 2. Check if the currently selected item is already present in that primary list.
+    const isSelectedInPrimaryList = primaryList.some(
+      (item) => item._id === selectedId
+    );
+
+    // 3. If a specific item is selected, but it's NOT in the current list
+    //    (e.g., after a search is cleared), AND we have successfully fetched its data individually...
+    if (
+      selectedId &&
+      !isSelectedInPrimaryList &&
+      selectedCategoryData?.data?.category
+    ) {
+      // 4. ...then prepend it to the list. This is the key fix. It guarantees
+      //    the SearchableSelect component can find the item's name to display it.
+      return [selectedCategoryData.data.category, ...primaryList];
+    }
+
+    // 5. Otherwise, just return the primary list as is.
+    return primaryList;
+  }, [
+    debouncedSearch,
+    searchResults,
+    allItems,
+    selectedId,
+    selectedCategoryData,
+  ]);
+
+  return {
+    items,
+    fetchNextPage,
+    hasNextPage: hasNextPage && !debouncedSearch,
+    isFetchingNextPage,
+    isLoading: isInfiniteLoading || (debouncedSearch.length > 0 && isSearching),
+  };
+};

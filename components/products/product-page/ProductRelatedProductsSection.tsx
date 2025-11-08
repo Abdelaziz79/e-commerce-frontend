@@ -137,7 +137,7 @@ export function ProductRelatedProductsSection({
         </div>
 
         {/* View All Link */}
-        {relatedProducts.length > 4 && (
+        {/* {relatedProducts.length > 4 && (
           <div className="text-center mt-6">
             <Button
               variant="outline"
@@ -146,7 +146,7 @@ export function ProductRelatedProductsSection({
               View All Related Products
             </Button>
           </div>
-        )}
+        )} */}
       </AccordionContent>
     </SectionContainer>
   );
