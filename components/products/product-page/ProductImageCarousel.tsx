@@ -97,7 +97,7 @@ export function ProductImageCarousel({
                 return (
                   <CarouselItem key={index}>
                     <div
-                      className="relative aspect-square bg-white rounded-lg overflow-hidden  cursor-pointer transition-all hover:shadow-md"
+                      className="relative aspect-square bg-white rounded-lg overflow-hidden  cursor-pointer transition-all "
                       onClick={() => openModal(index)}
                     >
                       {hasError ? (
@@ -234,15 +234,6 @@ export function ProductImageCarousel({
                 );
               })()}
             </div>
-
-            {/* Image Counter - Overlay on main image */}
-            {images.length > 1 && (
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm">
-                <span className="text-xs font-semibold text-gray-900">
-                  {selectedIndex + 1} / {images.length}
-                </span>
-              </div>
-            )}
           </div>
 
           {/* Sidebar - Desktop / Bottom Panel - Mobile */}

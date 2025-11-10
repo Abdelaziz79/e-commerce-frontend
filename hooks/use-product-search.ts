@@ -1,8 +1,3 @@
-// hooks/use-product-search.ts
-/**
- * Debounced product search hook with history
- */
-
 import { SearchProductsParams } from "@/types/product";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchProducts } from "./use-product-queries";
@@ -29,9 +24,10 @@ export function useProductSearch(options: UseProductSearchOptions = {}) {
   const [page, setPage] = useState(1);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
 
-  // Load search history from localStorage
+  // Load search history from localStorage on mount
   useEffect(() => {
     if (!enableHistory) return;
+
     try {
       const saved = localStorage.getItem(SEARCH_HISTORY_KEY);
       if (saved) {
@@ -54,16 +50,17 @@ export function useProductSearch(options: UseProductSearchOptions = {}) {
     return () => clearTimeout(timer);
   }, [query, debounceMs]);
 
+  // Build search params
   const params: SearchProductsParams = {
     q: debouncedQuery,
     page,
     limit: 20,
   };
 
-  const searchQuery = useSearchProducts(
-    params,
-    debouncedQuery.length >= minQueryLength
-  );
+  // Only enable query when we have enough characters
+  const shouldSearch = debouncedQuery.length >= minQueryLength;
+
+  const searchQuery = useSearchProducts(params, shouldSearch);
 
   // Save to history when search is successful
   const addToHistory = useCallback(
@@ -86,7 +83,7 @@ export function useProductSearch(options: UseProductSearchOptions = {}) {
     [enableHistory, maxHistoryItems]
   );
 
-  // Add to history when results are loaded
+  // Add to history when results are loaded successfully
   useEffect(() => {
     if (searchQuery.isSuccess && debouncedQuery && searchQuery.data?.data) {
       addToHistory(debouncedQuery);
@@ -132,7 +129,7 @@ export function useProductSearch(options: UseProductSearchOptions = {}) {
     // Search state
     query,
     debouncedQuery,
-    isSearching: query.length >= minQueryLength,
+    isSearching: shouldSearch,
     canSearch: query.length >= minQueryLength,
 
     // Results

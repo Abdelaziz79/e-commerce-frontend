@@ -34,27 +34,22 @@ export function AttributesForm({
   };
 
   return (
-    <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">
-      <CardHeader className="space-y-1 pb-4">
-        <CardTitle className="flex items-center gap-2.5 text-lg font-semibold text-gray-900">
-          <div className="p-2 rounded-lg bg-violet-50">
-            <ListChecks className="h-4 w-4 text-violet-600" />
-          </div>
+    <Card className="border border-gray-200 shadow-sm rounded-none">
+      <CardHeader className="border-b border-gray-200">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+          <ListChecks className="h-4 w-4 text-gray-500" />
           Product Specifications
         </CardTitle>
-        <p className="text-sm text-gray-500">
-          Add detailed specifications and technical attributes
-        </p>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="p-5 space-y-5">
         {/* Add Attribute Form */}
-        <div className="p-5 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/30 space-y-4">
-          <h3 className="text-sm font-semibold text-gray-900">
+        <div className="p-4 border-2 border-dashed border-gray-200 bg-gray-50 space-y-3">
+          <h3 className="text-xs font-semibold text-gray-900">
             Add Specification
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label
                 htmlFor="attrKey"
                 className="text-xs font-medium text-gray-700"
@@ -65,8 +60,8 @@ export function AttributesForm({
                 id="attrKey"
                 value={newKey}
                 onChange={(e) => setNewKey(e.target.value)}
-                placeholder="e.g., Processor, Screen Size"
-                className="h-10 border-gray-200 focus:border-violet-500 focus:ring-violet-500/20"
+                placeholder="e.g., Processor"
+                className="h-9 text-sm border-gray-200 rounded-none"
                 onKeyPress={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
@@ -75,7 +70,7 @@ export function AttributesForm({
                 }}
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label
                 htmlFor="attrVal"
                 className="text-xs font-medium text-gray-700"
@@ -86,8 +81,8 @@ export function AttributesForm({
                 id="attrVal"
                 value={newValue}
                 onChange={(e) => setNewValue(e.target.value)}
-                placeholder="e.g., Intel Core i7, 15.6 inches"
-                className="h-10 border-gray-200 focus:border-violet-500 focus:ring-violet-500/20"
+                placeholder="e.g., Intel Core i7"
+                className="h-9 text-sm border-gray-200 rounded-none"
                 onKeyPress={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
@@ -103,44 +98,36 @@ export function AttributesForm({
               type="button"
               onClick={handleAdd}
               disabled={!newKey.trim() || !newValue.trim()}
-              className="bg-violet-600 hover:bg-violet-700"
+              className="text-xs h-9 rounded-none"
             >
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-3 w-3 mr-1.5" />
               Add Attribute
             </Button>
           </div>
         </div>
 
         {/* Attributes List */}
-        {Object.keys(attributes).length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900">
-                Added Specifications ({Object.keys(attributes).length})
-              </h3>
-            </div>
+        {Object.keys(attributes).length > 0 ? (
+          <div className="space-y-2">
+            <h3 className="text-xs font-semibold text-gray-900">
+              Added Specifications ({Object.keys(attributes).length})
+            </h3>
             <div className="space-y-2">
               {Object.entries(attributes).map(([key, value]) => (
                 <div
                   key={key}
-                  className="group flex items-center gap-3 p-3.5 bg-white border border-gray-200 rounded-lg hover:shadow-sm hover:border-violet-200 transition-all"
+                  className="group flex items-center gap-3 p-3 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
                 >
-                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 uppercase tracking-wide">
-                        Name:
-                      </span>
-                      <span className="font-semibold text-sm text-gray-900 capitalize truncate">
+                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0 text-xs">
+                    <div>
+                      <span className="text-gray-500 uppercase">Name:</span>{" "}
+                      <span className="font-semibold text-gray-900 capitalize">
                         {key.replace(/_/g, " ")}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 uppercase tracking-wide">
-                        Value:
-                      </span>
-                      <span className="text-sm text-gray-700 truncate">
-                        {value}
-                      </span>
+                    <div>
+                      <span className="text-gray-500 uppercase">Value:</span>{" "}
+                      <span className="text-gray-700">{value}</span>
                     </div>
                   </div>
                   <Button
@@ -156,13 +143,10 @@ export function AttributesForm({
               ))}
             </div>
           </div>
-        )}
-
-        {Object.keys(attributes).length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            <ListChecks className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-            <p className="text-sm">No specifications added yet</p>
-            <p className="text-xs mt-1">Add technical details above</p>
+        ) : (
+          <div className="text-center py-8 border border-gray-200 bg-gray-50">
+            <ListChecks className="h-10 w-10 mx-auto mb-2 text-gray-300" />
+            <p className="text-xs text-gray-500">No specifications added</p>
           </div>
         )}
       </CardContent>

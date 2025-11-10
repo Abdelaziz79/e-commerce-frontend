@@ -16,6 +16,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import AdminProductActions from "@/components/products/AdminProductActions";
 import { ProductActions } from "@/components/products/product-page/ProductActions";
 import { ProductBreadcrumb } from "@/components/products/product-page/ProductBreadcrumb";
 import { ProductDetails } from "@/components/products/product-page/ProductDetails";
@@ -23,11 +24,13 @@ import { ProductImageCarousel } from "@/components/products/product-page/Product
 import { ProductInfoPage } from "@/components/products/product-page/ProductInfoPage";
 import { ProductMetaInfo } from "@/components/products/product-page/ProductMetaInfo";
 import { ProductVariations } from "@/components/products/product-page/ProductVariations";
+import { useAuth } from "@/hooks/auth-context";
 
 export default function ProductPage() {
   const params = useParams();
   const router = useRouter();
   const productIdOrSlug = params.id as string;
+  const { user } = useAuth();
 
   const [quantity, setQuantity] = useState(1);
   const [selectedVariationId, setSelectedVariationId] = useState<string | null>(
@@ -164,6 +167,9 @@ export default function ProductPage() {
           reviews={reviews}
           relatedProducts={relatedProducts}
         />
+        {user?.role === "admin" && (
+          <AdminProductActions productId={product._id} product={product} />
+        )}
       </div>
     </div>
   );

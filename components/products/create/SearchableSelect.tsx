@@ -64,7 +64,7 @@ export function SearchableSelect({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between font-normal text-left h-11 border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+          className="w-full justify-between font-normal text-left h-9 text-sm border-gray-200 hover:bg-gray-50 rounded-none"
         >
           <span
             className={selectedItemName ? "text-gray-900" : "text-gray-500"}
@@ -74,38 +74,27 @@ export function SearchableSelect({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-gray-400" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0 shadow-lg border-gray-200">
-        <div className="p-3 border-b bg-gray-50/50">
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0 shadow-md border-gray-200 rounded-none">
+        <div className="p-2 border-b border-gray-200 bg-gray-50">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search..."
-              className="pl-9 h-10 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 bg-white"
+              className="pl-8 h-8 text-xs border-gray-200 rounded-none"
             />
           </div>
         </div>
-        <ScrollArea className="h-64">
-          <div className="p-1.5">
+        <ScrollArea className="h-60">
+          <div className="p-1">
             {isLoading && !isFetchingNextPage ? (
               <div className="flex justify-center items-center p-8">
-                <div className="text-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-gray-400 mx-auto mb-2" />
-                  <p className="text-xs text-gray-500">Loading...</p>
-                </div>
+                <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
               </div>
             ) : items.length === 0 ? (
               <div className="text-center p-8">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 mb-3">
-                  <Search className="h-5 w-5 text-gray-400" />
-                </div>
-                <p className="text-sm font-medium text-gray-900">
-                  No results found
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Try adjusting your search
-                </p>
+                <p className="text-xs text-gray-500">No results found</p>
               </div>
             ) : (
               <>
@@ -116,13 +105,13 @@ export function SearchableSelect({
                       onValueChange(item._id);
                       setOpen(false);
                     }}
-                    className="flex items-center w-full p-2.5 text-sm hover:bg-blue-50 rounded-md cursor-pointer transition-colors group"
+                    className="flex items-center w-full p-2 text-xs hover:bg-gray-100 transition-colors"
                   >
                     <Check
-                      className={`mr-2.5 h-4 w-4 transition-opacity ${
+                      className={`mr-2 h-3.5 w-3.5 ${
                         value === item._id
-                          ? "opacity-100 text-blue-600"
-                          : "opacity-0 group-hover:opacity-30"
+                          ? "opacity-100 text-gray-900"
+                          : "opacity-0"
                       }`}
                     />
                     <span
@@ -139,13 +128,13 @@ export function SearchableSelect({
                 {hasNextPage && (
                   <Button
                     variant="ghost"
-                    className="w-full mt-1.5 h-9 text-sm text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                    className="w-full mt-1 h-8 text-xs rounded-none"
                     onClick={fetchNextPage}
                     disabled={isFetchingNextPage}
                   >
                     {isFetchingNextPage ? (
                       <>
-                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
                         Loading...
                       </>
                     ) : (

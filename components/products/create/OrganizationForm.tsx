@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useSearchableInfiniteAdminBrands } from "@/hooks/use-brand-hooks";
 import { useSearchableInfiniteAdminCategories } from "@/hooks/use-category-hooks";
 import { CreateProductData } from "@/types/product";
-import { FolderKanban, Plus, X, Tag, Sparkles } from "lucide-react";
+import { FolderKanban, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { SearchableSelect } from "./SearchableSelect";
 
@@ -47,33 +47,21 @@ export function OrganizationForm({
   };
 
   return (
-    <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">
-      <CardHeader className="space-y-1 pb-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2.5 text-lg font-semibold text-gray-900">
-            <div className="p-2 rounded-lg bg-emerald-50">
-              <FolderKanban className="h-4 w-4 text-emerald-600" />
-            </div>
-            Organization
-          </CardTitle>
-          <div className="flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full">
-            <Sparkles className="h-3 w-3" />
-            Required
-          </div>
-        </div>
-        <p className="text-sm text-gray-500">
-          Categorize and tag your product for better discoverability
-        </p>
+    <Card className="border border-gray-200 shadow-sm rounded-none">
+      <CardHeader className="border-b border-gray-200">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+          <FolderKanban className="h-4 w-4 text-gray-500" />
+          Organization
+        </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="p-5 space-y-5">
         {/* Category */}
         <div className="space-y-2">
           <Label
             htmlFor="category"
-            className="text-sm font-medium text-gray-700 flex items-center gap-1.5"
+            className="text-xs font-medium text-gray-700"
           >
-            Category
-            <span className="text-red-500">*</span>
+            Category <span className="text-red-500">*</span>
           </Label>
           <div className="flex gap-2">
             <div className="flex-1">
@@ -83,33 +71,27 @@ export function OrganizationForm({
                 useSearchableInfiniteQuery={
                   useSearchableInfiniteAdminCategories
                 }
-                placeholder="Search or select a category"
+                placeholder="Select category"
               />
             </div>
             <Button
               type="button"
               variant="outline"
               size="icon"
-              className="h-11 w-11 flex-shrink-0 border-gray-200 hover:bg-emerald-50 hover:border-emerald-300"
+              className="h-9 w-9 flex-shrink-0 border-gray-200 rounded-none"
               onClick={onAddNewCategory}
               title="Add new category"
             >
               <Plus className="h-4 w-4" />
             </Button>
           </div>
-          <p className="text-xs text-gray-500">
-            Choose the most relevant category for your product
-          </p>
+          <p className="text-xs text-gray-500">Choose the product category</p>
         </div>
 
         {/* Brand */}
         <div className="space-y-2">
-          <Label
-            htmlFor="brand"
-            className="text-sm font-medium text-gray-700 flex items-center gap-1.5"
-          >
-            Brand
-            <span className="text-red-500">*</span>
+          <Label htmlFor="brand" className="text-xs font-medium text-gray-700">
+            Brand <span className="text-red-500">*</span>
           </Label>
           <div className="flex gap-2">
             <div className="flex-1">
@@ -117,14 +99,14 @@ export function OrganizationForm({
                 value={formData.brand}
                 onValueChange={(value) => handleInputChange("brand", value)}
                 useSearchableInfiniteQuery={useSearchableInfiniteAdminBrands}
-                placeholder="Search or select a brand"
+                placeholder="Select brand"
               />
             </div>
             <Button
               type="button"
               variant="outline"
               size="icon"
-              className="h-11 w-11 flex-shrink-0 border-gray-200 hover:bg-emerald-50 hover:border-emerald-300"
+              className="h-9 w-9 flex-shrink-0 border-gray-200 rounded-none"
               onClick={onAddNewBrand}
               title="Add new brand"
             >
@@ -132,50 +114,42 @@ export function OrganizationForm({
             </Button>
           </div>
           <p className="text-xs text-gray-500">
-            Select the manufacturer or brand name
+            Select the manufacturer or brand
           </p>
         </div>
 
         {/* Tags */}
-        <div className="space-y-3 pt-4 border-t">
-          <div className="flex items-center gap-2">
-            <Tag className="h-4 w-4 text-gray-400" />
-            <Label htmlFor="tags" className="text-sm font-medium text-gray-700">
-              Product Tags
-              <span className="text-gray-400 text-xs ml-1.5">(Optional)</span>
-            </Label>
-          </div>
+        <div className="space-y-3 pt-3 border-t border-gray-200">
+          <Label htmlFor="tags" className="text-xs font-medium text-gray-700">
+            Tags <span className="text-gray-400 text-xs">(Optional)</span>
+          </Label>
 
           <div className="flex gap-2">
-            <div className="flex-1 relative">
-              <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                id="tags"
-                value={currentTag}
-                onChange={(e) => setCurrentTag(e.target.value)}
-                placeholder="Add keywords (e.g., Summer, Eco-friendly)"
-                className="pl-10 h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
-                onKeyPress={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddTag();
-                  }
-                }}
-              />
-            </div>
+            <Input
+              id="tags"
+              value={currentTag}
+              onChange={(e) => setCurrentTag(e.target.value)}
+              placeholder="Add keywords"
+              className="h-9 text-sm border-gray-200 rounded-none"
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddTag();
+                }
+              }}
+            />
             <Button
               type="button"
               onClick={handleAddTag}
               disabled={!currentTag.trim()}
-              className="h-11 px-6"
+              className="h-9 px-4 text-xs rounded-none"
             >
-              <Plus className="h-4 w-4 mr-1.5" />
               Add
             </Button>
           </div>
 
           <p className="text-xs text-gray-500">
-            Add tags to improve search and filtering. Press Enter or click Add.
+            Add tags for better search and filtering
           </p>
 
           {formData.tags && formData.tags.length > 0 && (
@@ -184,15 +158,15 @@ export function OrganizationForm({
                 <Badge
                   key={tag}
                   variant="secondary"
-                  className="pl-3 pr-1.5 py-1.5 text-sm bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
+                  className="pl-2 pr-1 py-1 text-xs bg-gray-100 text-gray-700 border border-gray-200 rounded-none"
                 >
-                  <span className="mr-1.5">{tag}</span>
+                  <span className="mr-1">{tag}</span>
                   <button
                     type="button"
-                    className="rounded-full hover:bg-blue-200 p-0.5 transition-colors"
+                    className="hover:bg-gray-200 p-0.5 rounded-none transition-colors"
                     onClick={() => handleRemoveTag(tag)}
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-3 w-3" />
                   </button>
                 </Badge>
               ))}

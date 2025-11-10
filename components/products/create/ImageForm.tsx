@@ -14,19 +14,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getImageSrc } from "@/lib/utils"; // Assuming your utils file is in lib
 import { CreateProductData } from "@/types/product";
-import {
-  Image as ImageIcon,
-  Upload,
-  X,
-  Link as LinkIcon,
-  Star,
-} from "lucide-react";
+import { Image as ImageIcon, Link as LinkIcon, Upload, X } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL_IMAGES || "http://localhost:5000";
 
 interface ImageFormProps {
   formData: CreateProductData;
@@ -51,6 +43,7 @@ export function ImageForm({ formData, handleInputChange }: ImageFormProps) {
         setImageType("upload");
       }
     }
+    // Cleanup object URLs on unmount
     return () => {
       previewUrls.forEach((url) => URL.revokeObjectURL(url));
     };
@@ -158,8 +151,8 @@ export function ImageForm({ formData, handleInputChange }: ImageFormProps) {
     } else if (newImages.every((img) => typeof img === "string")) {
       handleInputChange("images", newImages as string[]);
     } else {
-      console.error("Mixed types in images array");
-      return;
+      // Handle empty array case
+      handleInputChange("images", []);
     }
 
     if (imageToRemove instanceof File) {
@@ -183,16 +176,16 @@ export function ImageForm({ formData, handleInputChange }: ImageFormProps) {
   };
 
   const getImagePreview = (image: string | File, index: number): string => {
+    // For new file uploads, use the local object URL for preview
     if (image instanceof File) {
       return previewUrls[index] || "";
     }
+    // For existing images (either a remote URL or a local path), use the utility
     if (typeof image === "string") {
-      if (image.startsWith("/uploads/")) {
-        return `${API_BASE_URL}${image}`;
-      }
-      return image;
+      return getImageSrc(image);
     }
-    return "";
+    // Return a placeholder if the image is not a recognized type
+    return getImageSrc();
   };
 
   const getImageDisplayName = (image: string | File): string => {
@@ -224,43 +217,38 @@ export function ImageForm({ formData, handleInputChange }: ImageFormProps) {
   };
 
   return (
-    <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">
-      <CardHeader className="space-y-1 pb-4">
-        <CardTitle className="flex items-center gap-2.5 text-lg font-semibold text-gray-900">
-          <div className="p-2 rounded-lg bg-purple-50">
-            <ImageIcon className="h-4 w-4 text-purple-600" />
-          </div>
+    <Card className="border border-gray-200 shadow-sm rounded-none">
+      <CardHeader className="border-b border-gray-200">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+          <ImageIcon className="h-4 w-4 text-gray-500" />
           Product Images
         </CardTitle>
-        <p className="text-sm text-gray-500">
-          Add high-quality images to showcase your product
-        </p>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="p-5 space-y-5">
         <Tabs
           value={imageType}
           onValueChange={(v) => setImageType(v as "upload" | "url")}
           className="w-full"
         >
-          <TabsList className="grid w-full grid-cols-2 h-11 bg-gray-100/80">
+          <TabsList className="grid w-full grid-cols-2 h-9 bg-gray-100 rounded-none">
             <TabsTrigger
               value="upload"
-              className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              className="text-xs data-[state=active]:bg-white rounded-none"
             >
-              <Upload className="h-4 w-4 mr-2" />
+              <Upload className="h-3 w-3 mr-1.5" />
               Upload Files
             </TabsTrigger>
             <TabsTrigger
               value="url"
-              className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              className="text-xs data-[state=active]:bg-white rounded-none"
             >
-              <LinkIcon className="h-4 w-4 mr-2" />
+              <LinkIcon className="h-3 w-3 mr-1.5" />
               Image URL
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="upload" className="space-y-4 mt-4">
-            <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-blue-300 transition-colors bg-gray-50/30">
+          <TabsContent value="upload" className="space-y-3 mt-4">
+            <div className="border-2 border-dashed border-gray-200 rounded-none p-8 text-center bg-gray-50">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -271,24 +259,22 @@ export function ImageForm({ formData, handleInputChange }: ImageFormProps) {
                 id="image-files"
               />
               <div className="flex flex-col items-center gap-3">
-                <div className="p-3 rounded-full bg-blue-50">
-                  <Upload className="h-6 w-6 text-blue-600" />
-                </div>
+                <Upload className="h-8 w-8 text-gray-400" />
                 <div>
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => fileInputRef.current?.click()}
-                    className="font-medium"
+                    className="text-xs font-medium h-9 rounded-none"
                   >
                     Choose Files
                   </Button>
-                  <p className="text-sm text-gray-500 mt-2">
-                    or drag and drop files here
+                  <p className="text-xs text-gray-500 mt-2">
+                    or drag and drop here
                   </p>
                 </div>
                 <p className="text-xs text-gray-400">
-                  JPEG, PNG, WebP up to 5MB each
+                  JPEG, PNG, WebP • Max 5MB each
                 </p>
               </div>
             </div>
@@ -296,26 +282,23 @@ export function ImageForm({ formData, handleInputChange }: ImageFormProps) {
 
           <TabsContent value="url" className="space-y-3 mt-4">
             <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  type="url"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://example.com/image.jpg"
-                  className="pl-10 h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAddImageUrl();
-                    }
-                  }}
-                />
-              </div>
+              <Input
+                type="url"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://example.com/image.jpg"
+                className="h-9 text-sm border-gray-200 rounded-none"
+                onKeyPress={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddImageUrl();
+                  }
+                }}
+              />
               <Button
                 type="button"
                 onClick={handleAddImageUrl}
-                className="h-11 px-6"
+                className="h-9 px-4 text-xs rounded-none"
               >
                 Add URL
               </Button>
@@ -325,24 +308,19 @@ export function ImageForm({ formData, handleInputChange }: ImageFormProps) {
 
         {formData.images && formData.images.length > 0 && (
           <>
-            <div className="flex items-center justify-between pt-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-700">
-                  {formData.images.length}{" "}
-                  {formData.images.length === 1 ? "Image" : "Images"}
-                </span>
-                <Badge variant="secondary" className="text-xs">
-                  {imageType === "upload" ? "Uploaded" : "URL"}
-                </Badge>
-              </div>
+            <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+              <span className="text-xs font-medium text-gray-700">
+                {formData.images.length}{" "}
+                {formData.images.length === 1 ? "Image" : "Images"}
+              </span>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 onClick={handleClearAll}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                className="text-xs h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
               >
-                <X className="h-4 w-4 mr-1" />
+                <X className="h-3 w-3 mr-1" />
                 Clear All
               </Button>
             </div>
@@ -354,16 +332,13 @@ export function ImageForm({ formData, handleInputChange }: ImageFormProps) {
                 return (
                   <div
                     key={index}
-                    className={`group relative rounded-lg overflow-hidden border-2 transition-all ${
-                      isMain
-                        ? "border-blue-500 shadow-lg shadow-blue-100"
-                        : "border-gray-200 hover:border-gray-300"
+                    className={`group relative rounded-none overflow-hidden border-2 transition-all ${
+                      isMain ? "border-gray-900" : "border-gray-200"
                     }`}
                   >
                     {isMain && (
                       <div className="absolute top-2 left-2 z-10">
-                        <Badge className="bg-blue-500 text-white text-xs gap-1">
-                          <Star className="h-3 w-3 fill-white" />
+                        <Badge className="bg-gray-900 text-white text-xs rounded-none">
                           Main
                         </Badge>
                       </div>
@@ -372,12 +347,12 @@ export function ImageForm({ formData, handleInputChange }: ImageFormProps) {
                     <button
                       type="button"
                       onClick={() => handleRemoveImageAtIndex(index)}
-                      className="absolute top-2 right-2 z-10 bg-white/90 backdrop-blur-sm hover:bg-red-500 text-gray-700 hover:text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+                      className="absolute top-2 right-2 z-10 bg-white hover:bg-red-500 text-gray-700 hover:text-white rounded-none p-1 opacity-0 group-hover:opacity-100 transition-all border border-gray-200"
                     >
-                      <X className="h-3.5 w-3.5" />
+                      <X className="h-3 w-3" />
                     </button>
 
-                    <div className="relative aspect-square bg-gray-50">
+                    <div className="relative aspect-square bg-white">
                       {preview ? (
                         <Image
                           src={preview}
@@ -396,8 +371,8 @@ export function ImageForm({ formData, handleInputChange }: ImageFormProps) {
                       )}
                     </div>
 
-                    <div className="p-2 bg-white border-t">
-                      <p className="text-xs text-gray-600 truncate font-medium">
+                    <div className="p-2 bg-gray-50 border-t border-gray-200">
+                      <p className="text-xs text-gray-600 truncate">
                         {getImageDisplayName(image)}
                       </p>
                     </div>
@@ -407,10 +382,10 @@ export function ImageForm({ formData, handleInputChange }: ImageFormProps) {
             </div>
 
             {formData.images.length > 1 && (
-              <div className="space-y-2 pt-2 border-t">
+              <div className="space-y-2 pt-3 border-t border-gray-200">
                 <Label
                   htmlFor="mainImage"
-                  className="text-sm font-medium text-gray-700"
+                  className="text-xs font-medium text-gray-700"
                 >
                   Primary Display Image
                 </Label>
@@ -429,20 +404,17 @@ export function ImageForm({ formData, handleInputChange }: ImageFormProps) {
                     }
                   }}
                 >
-                  <SelectTrigger className="h-11 border-gray-200">
-                    <SelectValue placeholder="Choose which image appears first" />
+                  <SelectTrigger className="h-9 text-sm border-gray-200 rounded-none">
+                    <SelectValue placeholder="Select main image" />
                   </SelectTrigger>
                   <SelectContent>
                     {formData.images.map((image, index) => (
-                      <SelectItem key={index} value={getImageValue(image)}>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">
-                            Image {index + 1}
-                          </span>
-                          <span className="text-xs text-gray-500 truncate max-w-[180px]">
-                            {getImageDisplayName(image)}
-                          </span>
-                        </div>
+                      <SelectItem
+                        key={index}
+                        value={getImageValue(image)}
+                        className="text-xs"
+                      >
+                        Image {index + 1}: {getImageDisplayName(image)}
                       </SelectItem>
                     ))}
                   </SelectContent>

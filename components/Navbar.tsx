@@ -207,10 +207,7 @@ export function Navbar() {
                         Admin
                       </DropdownMenuLabel>
                       <DropdownMenuItem asChild>
-                        <Link
-                          href="/admin/products/create"
-                          className="cursor-pointer"
-                        >
+                        <Link href="/admin/products" className="cursor-pointer">
                           <Grid3x3 className="mr-2 h-4 w-4" />
                           Manage Products
                         </Link>
@@ -457,7 +454,7 @@ export function Navbar() {
                         </p>
                         <nav className="space-y-2">
                           <Link
-                            href="/admin/products/create"
+                            href="/admin/products"
                             className="flex items-center gap-3 text-purple-700 hover:text-purple-800 font-medium py-2 px-3 rounded-lg hover:bg-purple-50 transition-all"
                           >
                             <Grid3x3 className="h-5 w-5" />

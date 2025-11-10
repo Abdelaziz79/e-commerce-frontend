@@ -1,4 +1,3 @@
-// hooks/use-product-queries.ts
 import { apiClient } from "@/lib/apiClient";
 import {
   LowStockParams,
@@ -73,7 +72,7 @@ export function useProduct(id: string, enabled: boolean = true) {
 }
 
 /**
- * Search products by query
+ * Search products by query (uses /products/search endpoint)
  */
 export function useSearchProducts(
   params: SearchProductsParams,

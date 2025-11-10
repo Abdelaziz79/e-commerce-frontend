@@ -28,7 +28,7 @@ export function useCreateProduct() {
       queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.lists() });
       queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.stats() });
       toast.success("Product created successfully!");
-      router.push(`/admin/products/${response.data._id}`);
+      router.push(`/admin/products`);
     },
     onError: (error: ApiError) =>
       toast.error(error.message || "Failed to create product"),
