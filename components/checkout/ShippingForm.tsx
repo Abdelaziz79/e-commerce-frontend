@@ -1,11 +1,11 @@
 // components/checkout/ShippingForm.tsx
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ShippingAddress } from "@/types/order";
-import { MapPin, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface ShippingFormProps {
   onSubmit: (address: ShippingAddress) => void;
@@ -69,121 +69,154 @@ export function ShippingForm({ onSubmit, initialData }: ShippingFormProps) {
   };
 
   return (
-    <Card className="shadow-lg border-0">
-      <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 border-b">
-        <div className="flex items-center gap-2">
-          <MapPin className="h-6 w-6 text-primary" />
-          <CardTitle className="text-2xl">Shipping Information</CardTitle>
-        </div>
-        <p className="text-sm text-muted-foreground mt-1">
+    <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-slate-900">
+          Shipping Information
+        </h2>
+        <p className="text-sm text-slate-500 mt-1">
           Where should we deliver your order?
         </p>
-      </CardHeader>
-      <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="space-y-5">
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Street Address */}
+        <div>
+          <Label
+            htmlFor="address"
+            className="block text-sm font-medium text-slate-900 mb-2"
+          >
+            Street Address
+          </Label>
+          <Input
+            id="address"
+            name="address"
+            value={formData.address}
+            onChange={handleChange}
+            placeholder="123 Main Street, Apt 4B"
+            className={cn(
+              "h-12 rounded-xl transition-all",
+              errors.address
+                ? "border-red-300 focus-visible:ring-red-500"
+                : "border-slate-200"
+            )}
+          />
+          {errors.address && (
+            <p className="text-xs text-red-500 mt-1.5">{errors.address}</p>
+          )}
+        </div>
+
+        {/* City & Postal Code */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="address" className="text-base font-semibold">
-              Street Address <span className="text-red-500">*</span>
+            <Label
+              htmlFor="city"
+              className="block text-sm font-medium text-slate-900 mb-2"
+            >
+              City
             </Label>
             <Input
-              id="address"
-              name="address"
-              value={formData.address}
+              id="city"
+              name="city"
+              value={formData.city}
               onChange={handleChange}
-              placeholder="123 Main Street, Apt 4B"
-              className={`mt-2 ${errors.address ? "border-red-500" : ""}`}
-            />
-            {errors.address && (
-              <p className="text-sm text-red-500 mt-1.5 flex items-center gap-1">
-                <span className="text-xs">⚠</span> {errors.address}
-              </p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <Label htmlFor="city" className="text-base font-semibold">
-                City <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="city"
-                name="city"
-                value={formData.city}
-                onChange={handleChange}
-                placeholder="New York"
-                className={`mt-2 ${errors.city ? "border-red-500" : ""}`}
-              />
-              {errors.city && (
-                <p className="text-sm text-red-500 mt-1.5 flex items-center gap-1">
-                  <span className="text-xs">⚠</span> {errors.city}
-                </p>
+              placeholder="New York"
+              className={cn(
+                "h-12 rounded-xl transition-all",
+                errors.city
+                  ? "border-red-300 focus-visible:ring-red-500"
+                  : "border-slate-200"
               )}
-            </div>
+            />
+            {errors.city && (
+              <p className="text-xs text-red-500 mt-1.5">{errors.city}</p>
+            )}
+          </div>
 
-            <div>
-              <Label htmlFor="postalCode" className="text-base font-semibold">
-                Postal Code <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="postalCode"
-                name="postalCode"
-                value={formData.postalCode}
-                onChange={handleChange}
-                placeholder="10001"
-                className={`mt-2 ${errors.postalCode ? "border-red-500" : ""}`}
-              />
-              {errors.postalCode && (
-                <p className="text-sm text-red-500 mt-1.5 flex items-center gap-1">
-                  <span className="text-xs">⚠</span> {errors.postalCode}
-                </p>
+          <div>
+            <Label
+              htmlFor="postalCode"
+              className="block text-sm font-medium text-slate-900 mb-2"
+            >
+              Postal Code
+            </Label>
+            <Input
+              id="postalCode"
+              name="postalCode"
+              value={formData.postalCode}
+              onChange={handleChange}
+              placeholder="10001"
+              className={cn(
+                "h-12 rounded-xl transition-all",
+                errors.postalCode
+                  ? "border-red-300 focus-visible:ring-red-500"
+                  : "border-slate-200"
               )}
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="country" className="text-base font-semibold">
-              Country <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="country"
-              name="country"
-              value={formData.country}
-              onChange={handleChange}
-              placeholder="United States"
-              className={`mt-2 ${errors.country ? "border-red-500" : ""}`}
             />
-            {errors.country && (
-              <p className="text-sm text-red-500 mt-1.5 flex items-center gap-1">
-                <span className="text-xs">⚠</span> {errors.country}
-              </p>
+            {errors.postalCode && (
+              <p className="text-xs text-red-500 mt-1.5">{errors.postalCode}</p>
             )}
           </div>
+        </div>
 
-          <div>
-            <Label htmlFor="phoneNumber" className="text-base font-semibold">
-              Phone Number <span className="text-gray-500">(Optional)</span>
-            </Label>
-            <Input
-              id="phoneNumber"
-              name="phoneNumber"
-              value={formData.phoneNumber}
-              onChange={handleChange}
-              placeholder="+1 (555) 123-4567"
-              className={`mt-2 ${errors.phoneNumber ? "border-red-500" : ""}`}
-            />
-            {errors.phoneNumber && (
-              <p className="text-sm text-red-500 mt-1.5 flex items-center gap-1">
-                <span className="text-xs">⚠</span> {errors.phoneNumber}
-              </p>
+        {/* Country */}
+        <div>
+          <Label
+            htmlFor="country"
+            className="block text-sm font-medium text-slate-900 mb-2"
+          >
+            Country
+          </Label>
+          <Input
+            id="country"
+            name="country"
+            value={formData.country}
+            onChange={handleChange}
+            placeholder="United States"
+            className={cn(
+              "h-12 rounded-xl transition-all",
+              errors.country
+                ? "border-red-300 focus-visible:ring-red-500"
+                : "border-slate-200"
             )}
-          </div>
+          />
+          {errors.country && (
+            <p className="text-xs text-red-500 mt-1.5">{errors.country}</p>
+          )}
+        </div>
 
-          <Button type="submit" className="w-full" size="lg">
-            Continue to Payment
-            <ArrowRight className="ml-2 h-5 w-5" />
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+        {/* Phone Number */}
+        <div>
+          <Label
+            htmlFor="phoneNumber"
+            className="block text-sm font-medium text-slate-900 mb-2"
+          >
+            Phone Number{" "}
+            <span className="text-slate-400 font-normal">(Optional)</span>
+          </Label>
+          <Input
+            id="phoneNumber"
+            name="phoneNumber"
+            value={formData.phoneNumber}
+            onChange={handleChange}
+            placeholder="+1 (555) 123-4567"
+            className="h-12 border-slate-200 rounded-xl"
+          />
+          {errors.phoneNumber && (
+            <p className="text-xs text-red-500 mt-1.5">{errors.phoneNumber}</p>
+          )}
+        </div>
+
+        {/* Submit Button */}
+        <Button
+          type="submit"
+          className="w-full h-12 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium shadow-sm hover:shadow-md transition-all"
+          size="lg"
+        >
+          Continue to Payment
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+      </form>
+    </div>
   );
 }

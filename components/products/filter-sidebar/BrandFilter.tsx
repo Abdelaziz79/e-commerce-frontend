@@ -41,7 +41,7 @@ export function BrandFilter({ selectedBrand, toggleBrand }: BrandFilterProps) {
   // Check if selected brand is in the current list
   const isSelectedInList = useMemo(() => {
     if (!selectedBrand) return true;
-    return allBrands.some((brand) => brand._id === selectedBrand);
+    return allBrands.some((brand) => brand?._id === selectedBrand);
   }, [selectedBrand, allBrands]);
 
   // Fetch the selected brand if it's not in the paginated list and not searching

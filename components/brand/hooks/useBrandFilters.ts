@@ -1,18 +1,36 @@
 // components/brand/hooks/useBrandFilters.ts
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { BrandsParams, BrandSearchParams } from "@/types/brand";
 import { useDebounce } from "@/hooks/use-debounce";
+import { ViewModeStorage } from "@/lib/brandViewModeStorage";
+
 export type BrandStatusFilter = "all" | "active" | "inactive";
 
 export function useBrandFilters() {
+  const viewModeStorage = ViewModeStorage.getInstance();
+
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState("-createdAt");
   const [statusFilter, setStatusFilter] = useState<BrandStatusFilter>("all");
+  const [viewMode, setViewModeState] = useState<"grid" | "list">(
+    viewModeStorage.get()
+  );
 
   // Debounce search query with custom hook
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
+
+  // Load view mode from localStorage on mount
+  useEffect(() => {
+    const savedViewMode = viewModeStorage.get();
+    setViewModeState(savedViewMode);
+  }, []);
+
+  const setViewMode = (mode: "grid" | "list") => {
+    setViewModeState(mode);
+    viewModeStorage.set(mode);
+  };
 
   const handleSearchQueryChange = useCallback((query: string) => {
     setSearchQuery(query);
@@ -44,7 +62,7 @@ export function useBrandFilters() {
     return {
       q: debouncedSearchQuery,
       page,
-      limit: 12,
+      limit: 16,
       sort: sortOrder,
     };
   }, [debouncedSearchQuery, page, sortOrder, isSearchMode]);
@@ -53,7 +71,7 @@ export function useBrandFilters() {
   const queryParams: BrandsParams = useMemo(() => {
     const params: BrandsParams = {
       page,
-      limit: 12,
+      limit: 16,
       sort: sortOrder,
     };
 
@@ -73,6 +91,8 @@ export function useBrandFilters() {
     debouncedSearchQuery,
     sortOrder,
     statusFilter,
+    viewMode,
+    setViewMode,
     isSearchMode,
     searchParams,
     queryParams,

@@ -38,44 +38,54 @@ export function CheckoutView({ cart, cartTotal }: CheckoutViewProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8">
-      <div className="container mx-auto max-w-6xl px-4">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Checkout</h1>
-          <p className="text-gray-600">
-            Complete your purchase in a few simple steps
+          <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">
+            Checkout
+          </h1>
+          <p className="text-sm text-slate-500 mt-2">
+            Complete your purchase securely
           </p>
         </div>
 
         <CheckoutSteps currentStep={currentStep} />
 
-        <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+          {/* Main Content */}
           <div className="lg:col-span-2">
             {currentStep === 1 && (
-              <ShippingForm
-                onSubmit={handleShippingSubmit}
-                initialData={shippingAddress}
-              />
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <ShippingForm
+                  onSubmit={handleShippingSubmit}
+                  initialData={shippingAddress}
+                />
+              </div>
             )}
 
             {currentStep === 2 && shippingAddress && (
-              <PaymentForm
-                onSubmit={handlePaymentSubmit}
-                onBack={handleBackToShipping}
-                initialMethod={paymentMethod}
-              />
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <PaymentForm
+                  onSubmit={handlePaymentSubmit}
+                  onBack={handleBackToShipping}
+                  initialMethod={paymentMethod}
+                />
+              </div>
             )}
 
             {currentStep === 3 && shippingAddress && paymentMethod && (
-              <OrderReview
-                cart={cart}
-                shippingAddress={shippingAddress}
-                paymentMethod={paymentMethod}
-                onBack={handleBackToPayment}
-              />
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <OrderReview
+                  cart={cart}
+                  shippingAddress={shippingAddress}
+                  paymentMethod={paymentMethod}
+                  onBack={handleBackToPayment}
+                />
+              </div>
             )}
           </div>
 
+          {/* Order Summary Sidebar */}
           <div className="lg:col-span-1">
             <OrderSummaryCard
               cart={cart}

@@ -6,6 +6,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/Providers";
+import { ScrollToTop } from "@/components/ScrollToTop"; // Import this
 
 const inter = Inter({
   variable: "--font-inter",
@@ -34,11 +35,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="scroll-smooth">
+    // REMOVED "scroll-smooth" class here to fix the navigation scroll bug
+    <html lang="en">
       <body
         className={`${inter.variable} ${dmSans.variable} font-sans antialiased min-h-screen bg-white`}
       >
         <Providers>
+          <ScrollToTop /> {/* Add this component */}
           <div className="flex flex-col min-h-screen overflow-x-hidden">
             <Navbar />
             <main className="flex-grow">{children}</main>

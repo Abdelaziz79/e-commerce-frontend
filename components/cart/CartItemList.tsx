@@ -9,13 +9,13 @@ interface CartItemListProps {
 
 export function CartItemList({ cart }: CartItemListProps) {
   return (
-    <>
+    <div className="space-y-4">
       {cart.map((item, index) => (
         <CartItemCard
           key={`${index}-${item.variation?.sku || ""}`}
           item={item}
         />
       ))}
-    </>
+    </div>
   );
 }

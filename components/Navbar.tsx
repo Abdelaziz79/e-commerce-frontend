@@ -1,7 +1,38 @@
 "use client";
 
+import {
+  Heart,
+  LayoutDashboard,
+  Loader2,
+  LogOut,
+  Menu,
+  Package,
+  Settings,
+  ShieldCheck,
+  ShoppingBag,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+
+// Hooks
+import { useLogout } from "@/hooks/use-auth-mutations";
+import { useCartCount, useFavorites } from "@/hooks/use-cart-favorites";
+import { useUserAvatar, useUserProfile } from "@/hooks/use-user-mutations";
+
+// Components
+import { GlobalSearch } from "@/components/shared/GlobalSearch";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -9,506 +40,321 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Heart,
-  Menu,
-  Search,
-  ShoppingCart,
-  User,
-  LogOut,
-  Settings,
-  Package,
-  LayoutDashboard,
-  Tag,
-  Grid3x3,
-  Store,
-  ChevronDown,
-} from "lucide-react";
-import Link from "next/link";
-import { useAuth } from "@/hooks/auth-context";
-import { useLogout } from "@/hooks/use-auth-mutations";
-import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 export function Navbar() {
-  const { user, isLoading } = useAuth();
+  const pathname = usePathname();
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  // Auth & Data
+  const { data } = useUserProfile();
+  const user = data?.data;
+  const isAuthenticated = !!user;
   const logoutMutation = useLogout();
-  const [isShopOpen, setIsShopOpen] = useState(false);
+  const cartCount = useCartCount();
+  const { data: favoritesData } = useFavorites();
+  const avatarUrl = useUserAvatar();
+
+  const favoritesCount = favoritesData?.data?.favorites?.length || 0;
+
+  // Handle scroll effect
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 0);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const handleLogout = () => {
     logoutMutation.mutate();
   };
 
-  const isAdmin = user?.role === "admin"; // Adjust based on your user role structure
+  const navLinks = [
+    { href: "/", label: "Home" },
+    { href: "/products", label: "Shop" },
+    { href: "/categories", label: "Categories" },
+    { href: "/brands", label: "Brands" },
+  ];
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-200">
-      <div className="container mx-auto px-4 flex items-center justify-between h-16 max-w-7xl">
-        {/* Logo & Main Navigation */}
-        <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center">
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 font-bold text-2xl tracking-tight">
-              Tech<span className="font-light">Store</span>
-            </span>
-          </Link>
-
-          <nav className="hidden lg:flex items-center gap-1">
-            {/* Shop Dropdown */}
-            <DropdownMenu open={isShopOpen} onOpenChange={setIsShopOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="text-gray-700 hover:text-black hover:bg-gray-100 font-medium gap-1"
-                >
-                  Shop
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuLabel>Browse</DropdownMenuLabel>
-                <DropdownMenuItem asChild>
-                  <Link href="/products" className="cursor-pointer">
-                    <Grid3x3 className="mr-2 h-4 w-4" />
-                    All Products
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/categories" className="cursor-pointer">
-                    <Tag className="mr-2 h-4 w-4" />
-                    Categories
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/brands" className="cursor-pointer">
-                    <Store className="mr-2 h-4 w-4" />
-                    Brands
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Admin Link */}
-            {isAdmin && (
-              <Link href="/admin">
-                <Button
-                  variant="ghost"
-                  className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 font-medium"
-                >
-                  <LayoutDashboard className="mr-2 h-4 w-4" />
-                  Admin
-                </Button>
-              </Link>
-            )}
-          </nav>
-        </div>
-
-        {/* Search Bar */}
-        <div className="hidden md:flex flex-1 max-w-md mx-8">
-          <div className="relative w-full">
-            <Input
-              type="text"
-              placeholder="Search products..."
-              className="w-full py-2 pl-4 pr-10 border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 hover:bg-white"
-            />
-            <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
-          </div>
-        </div>
-
-        {/* Right Side Actions */}
-        <div className="flex items-center gap-2">
-          {!isLoading && user ? (
-            <>
-              {/* Favorites */}
-              <Link href="/favorites">
+    <header
+      className={cn(
+        "sticky top-0 z-50 w-full transition-all duration-200 border-b border-gray-200"
+      )}
+    >
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 sm:h-20 items-center justify-between gap-4">
+          {/* 1. LEFT: Logo & Mobile Trigger */}
+          <div className="flex items-center gap-3 lg:gap-8">
+            {/* Mobile Menu */}
+            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+              <SheetTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="hidden md:flex hover:bg-gray-100 rounded-full relative"
+                  className="lg:hidden -ml-2 text-gray-600"
                 >
-                  <Heart className="h-5 w-5 text-gray-700" />
+                  <Menu className="h-6 w-6" />
+                  <span className="sr-only">Menu</span>
                 </Button>
-              </Link>
-
-              {/* Cart */}
-              <Link href="/cart">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="hover:bg-gray-100 rounded-full relative"
-                >
-                  <ShoppingCart className="h-5 w-5 text-gray-700" />
-                  <span className="absolute -top-1 -right-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full shadow-md">
-                    0
-                  </span>
-                </Button>
-              </Link>
-
-              {/* User Menu */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="hidden md:flex hover:bg-gray-100 rounded-full"
-                  >
-                    <div className="h-9 w-9 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center shadow-md">
-                      <span className="text-white text-sm font-semibold">
-                        {user.name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64">
-                  <div className="px-2 py-3">
-                    <p className="text-sm font-semibold">{user.name}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{user.email}</p>
-                    {!user.isEmailVerified && (
-                      <p className="text-xs text-amber-600 mt-2 font-medium">
-                        ⚠ Email not verified
-                      </p>
-                    )}
+              </SheetTrigger>
+              <SheetContent
+                side="left"
+                className="w-[300px] sm:w-[400px] p-0 border-r border-gray-100"
+              >
+                <SheetHeader className="p-6 border-b border-gray-100 text-left">
+                  <SheetTitle className="font-bold text-xl tracking-tight">
+                    TechStore
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="flex flex-col h-full">
+                  <div className="p-6 pb-2">
+                    <GlobalSearch
+                      onSearchSubmit={() => setIsSheetOpen(false)}
+                    />
                   </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard" className="cursor-pointer">
-                      <LayoutDashboard className="mr-2 h-4 w-4" />
-                      Dashboard
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/orders" className="cursor-pointer">
-                      <Package className="mr-2 h-4 w-4" />
-                      My Orders
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/favorites" className="cursor-pointer">
-                      <Heart className="mr-2 h-4 w-4" />
-                      Wishlist
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings" className="cursor-pointer">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
-                  {isAdmin && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel className="text-xs text-purple-600">
-                        Admin
-                      </DropdownMenuLabel>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin/products" className="cursor-pointer">
-                          <Grid3x3 className="mr-2 h-4 w-4" />
-                          Manage Products
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin/orders" className="cursor-pointer">
-                          <Package className="mr-2 h-4 w-4" />
-                          Manage Orders
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link
-                          href="/admin/categories"
-                          className="cursor-pointer"
-                        >
-                          <Tag className="mr-2 h-4 w-4" />
-                          Categories
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin/brands" className="cursor-pointer">
-                          <Store className="mr-2 h-4 w-4" />
-                          Brands
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
+                  <nav className="flex flex-col px-2 py-4 gap-1">
+                    {navLinks.map((link) => (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        onClick={() => setIsSheetOpen(false)}
+                        className={cn(
+                          "px-4 py-3 text-base font-medium rounded-lg transition-colors",
+                          pathname === link.href
+                            ? "bg-gray-100 text-gray-900"
+                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        )}
+                      >
+                        {link.label}
+                      </Link>
+                    ))}
+                  </nav>
+                  {isAuthenticated && (
+                    <div className="mt-auto border-t border-gray-100 p-4 space-y-1">
+                      <div className="px-4 py-2 mb-2">
+                        <p className="text-sm font-medium text-gray-900">
+                          {user.name}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {user.email}
+                        </p>
+                      </div>
+                      <Link
+                        href="/orders"
+                        onClick={() => setIsSheetOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                      >
+                        <Package className="h-4 w-4" /> Orders
+                      </Link>
+                      <Link
+                        href="/settings"
+                        onClick={() => setIsSheetOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                      >
+                        <Settings className="h-4 w-4" /> Settings
+                      </Link>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <LogOut className="h-4 w-4" /> Sign Out
+                      </button>
+                    </div>
                   )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleLogout}
-                    disabled={logoutMutation.isPending}
-                    className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
-          ) : (
-            <>
-              {/* Guest Actions */}
-              <Link href="/favorites" className="hidden md:block">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="hover:bg-gray-100 rounded-full"
-                >
-                  <Heart className="h-5 w-5 text-gray-700" />
-                </Button>
-              </Link>
-              <Link href="/cart">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="hover:bg-gray-100 rounded-full relative"
-                >
-                  <ShoppingCart className="h-5 w-5 text-gray-700" />
-                  <span className="absolute -top-1 -right-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full shadow-md">
-                    0
-                  </span>
-                </Button>
-              </Link>
-              <Link href="/sign-in" className="hidden md:block">
-                <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 rounded-full font-medium shadow-md hover:shadow-lg transition-all duration-300">
-                  Sign In
-                </Button>
-              </Link>
-            </>
-          )}
+                </div>
+              </SheetContent>
+            </Sheet>
 
-          {/* Mobile Menu */}
-          <Sheet>
-            <SheetTrigger asChild>
+            {/* Logo */}
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-900 text-white shadow-sm transition-transform group-hover:scale-105">
+                <span className="text-lg font-bold">T</span>
+              </div>
+              <span className="hidden text-xl font-bold tracking-tight text-gray-900 lg:inline-block">
+                TechStore
+              </span>
+            </Link>
+          </div>
+
+          {/* 2. CENTER: Desktop Nav */}
+          <nav className="hidden lg:flex items-center gap-1">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={cn(
+                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
+                  pathname === link.href
+                    ? "text-gray-900 bg-gray-100"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                )}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+
+          {/* 3. RIGHT: Search & Actions */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Desktop Search */}
+            <div className="hidden md:block w-[240px] lg:w-[280px]">
+              <GlobalSearch className="h-10" />
+            </div>
+
+            {/* Actions Group */}
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              {/* Wishlist */}
               <Button
                 variant="ghost"
                 size="icon"
-                className="lg:hidden hover:bg-gray-100 rounded-full"
+                asChild
+                className="relative h-11 w-11 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100"
               >
-                <Menu className="h-6 w-6 text-gray-700" />
+                <Link href="/wishlist">
+                  <Heart className="h-5 w-5" />
+                  {favoritesCount > 0 && (
+                    <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
+                  )}
+                  <span className="sr-only">Wishlist</span>
+                </Link>
               </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-[320px] p-0">
-              <SheetTitle className="sr-only">Mobile Navigation</SheetTitle>
-              <div className="h-full flex flex-col bg-gradient-to-br from-slate-50 to-blue-50">
-                {/* Header */}
-                <SheetHeader className="px-6 py-5 border-b bg-white/80">
-                  <Link href="/" className="flex items-center">
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 font-bold text-2xl tracking-tight">
-                      Tech<span className="font-light">Store</span>
+
+              {/* Cart */}
+              <Button
+                variant="ghost"
+                size="icon"
+                asChild
+                className="relative h-11 w-11 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              >
+                <Link href="/cart">
+                  <ShoppingBag className="h-5 w-5" />
+                  {cartCount > 0 && (
+                    <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-gray-900 text-[10px] font-bold text-white ring-2 ring-white">
+                      {cartCount}
                     </span>
-                  </Link>
-                </SheetHeader>
+                  )}
+                  <span className="sr-only">Cart</span>
+                </Link>
+              </Button>
 
-                <div className="flex-1 overflow-auto px-6 py-6">
-                  {/* Search */}
-                  <div className="relative mb-6">
-                    <Input
-                      type="text"
-                      placeholder="Search products..."
-                      className="w-full py-2 pl-4 pr-10 border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 bg-white"
-                    />
-                    <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
-                  </div>
+              {/* User Profile / Login */}
+              {isAuthenticated && user ? (
+                <div className="pl-1">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="relative h-10 w-10 rounded-full p-0 hover:bg-transparent focus-visible:ring-2 focus-visible:ring-gray-200"
+                      >
+                        <Avatar className="h-9 w-9 border border-gray-200">
+                          <AvatarImage
+                            src={avatarUrl}
+                            alt={user.name}
+                            className="object-cover"
+                          />
+                          <AvatarFallback className="bg-gray-100 text-gray-700 font-medium text-xs">
+                            {user.name?.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      </Button>
+                    </DropdownMenuTrigger>
 
-                  {/* User Info */}
-                  {user && (
-                    <div className="mb-6 p-4 bg-white rounded-xl shadow-sm border border-gray-100">
-                      <div className="flex items-center gap-3">
-                        <div className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
-                          <span className="text-white font-semibold text-lg">
-                            {user.name.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900">
+                    <DropdownMenuContent
+                      className="w-56 p-1 mt-1 rounded-xl border-gray-200 shadow-lg shadow-gray-200/50"
+                      align="end"
+                      forceMount
+                    >
+                      <DropdownMenuLabel className="font-normal p-3 mb-1">
+                        <div className="flex flex-col space-y-1">
+                          <p className="text-sm font-semibold leading-none text-gray-900">
                             {user.name}
                           </p>
-                          <p className="text-xs text-gray-500">{user.email}</p>
+                          <p className="text-xs leading-none text-gray-500 truncate">
+                            {user.email}
+                          </p>
                         </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Navigation Sections */}
-                  <div className="space-y-6">
-                    {/* Shop Section */}
-                    <div>
-                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
-                        Shop
-                      </p>
-                      <nav className="space-y-2">
-                        <Link
-                          href="/products"
-                          className="flex items-center gap-3 text-gray-800 hover:text-blue-600 font-medium py-2 px-3 rounded-lg hover:bg-white transition-all"
-                        >
-                          <Grid3x3 className="h-5 w-5" />
-                          All Products
-                        </Link>
-                        <Link
-                          href="/categories"
-                          className="flex items-center gap-3 text-gray-800 hover:text-blue-600 font-medium py-2 px-3 rounded-lg hover:bg-white transition-all"
-                        >
-                          <Tag className="h-5 w-5" />
-                          Categories
-                        </Link>
-                        <Link
-                          href="/brands"
-                          className="flex items-center gap-3 text-gray-800 hover:text-blue-600 font-medium py-2 px-3 rounded-lg hover:bg-white transition-all"
-                        >
-                          <Store className="h-5 w-5" />
-                          Brands
-                        </Link>
-                      </nav>
-                    </div>
-
-                    {/* Account Section */}
-                    <div className="border-t border-gray-200 pt-6">
-                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
-                        Account
-                      </p>
-                      <nav className="space-y-2">
-                        {user ? (
-                          <>
-                            <Link
-                              href="/dashboard"
-                              className="flex items-center gap-3 text-gray-800 hover:text-blue-600 font-medium py-2 px-3 rounded-lg hover:bg-white transition-all"
-                            >
-                              <LayoutDashboard className="h-5 w-5" />
-                              Dashboard
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator className="bg-gray-100" />
+                      <DropdownMenuGroup className="p-1">
+                        {user.role === "admin" && (
+                          <DropdownMenuItem
+                            asChild
+                            className="rounded-lg focus:bg-gray-50 cursor-pointer"
+                          >
+                            <Link href="/admin">
+                              <ShieldCheck className="mr-2 h-4 w-4 text-indigo-600" />
+                              <span>Admin Panel</span>
                             </Link>
-                            <Link
-                              href="/orders"
-                              className="flex items-center gap-3 text-gray-800 hover:text-blue-600 font-medium py-2 px-3 rounded-lg hover:bg-white transition-all"
-                            >
-                              <Package className="h-5 w-5" />
-                              My Orders
-                            </Link>
-                            <Link
-                              href="/favorites"
-                              className="flex items-center gap-3 text-gray-800 hover:text-blue-600 font-medium py-2 px-3 rounded-lg hover:bg-white transition-all"
-                            >
-                              <Heart className="h-5 w-5" />
-                              Wishlist
-                            </Link>
-                            <Link
-                              href="/cart"
-                              className="flex items-center gap-3 text-gray-800 hover:text-blue-600 font-medium py-2 px-3 rounded-lg hover:bg-white transition-all"
-                            >
-                              <ShoppingCart className="h-5 w-5" />
-                              Cart
-                              <span className="ml-auto bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs px-2 py-1 rounded-full">
-                                0
-                              </span>
-                            </Link>
-                            <Link
-                              href="/settings"
-                              className="flex items-center gap-3 text-gray-800 hover:text-blue-600 font-medium py-2 px-3 rounded-lg hover:bg-white transition-all"
-                            >
-                              <Settings className="h-5 w-5" />
-                              Settings
-                            </Link>
-                          </>
-                        ) : (
-                          <>
-                            <Link
-                              href="/sign-in"
-                              className="flex items-center gap-3 text-gray-800 hover:text-blue-600 font-medium py-2 px-3 rounded-lg hover:bg-white transition-all"
-                            >
-                              <User className="h-5 w-5" />
-                              Sign In
-                            </Link>
-                            <Link
-                              href="/register"
-                              className="flex items-center gap-3 text-gray-800 hover:text-blue-600 font-medium py-2 px-3 rounded-lg hover:bg-white transition-all"
-                            >
-                              <User className="h-5 w-5" />
-                              Create Account
-                            </Link>
-                            <Link
-                              href="/favorites"
-                              className="flex items-center gap-3 text-gray-800 hover:text-blue-600 font-medium py-2 px-3 rounded-lg hover:bg-white transition-all"
-                            >
-                              <Heart className="h-5 w-5" />
-                              Wishlist
-                            </Link>
-                            <Link
-                              href="/cart"
-                              className="flex items-center gap-3 text-gray-800 hover:text-blue-600 font-medium py-2 px-3 rounded-lg hover:bg-white transition-all"
-                            >
-                              <ShoppingCart className="h-5 w-5" />
-                              Cart
-                            </Link>
-                          </>
+                          </DropdownMenuItem>
                         )}
-                      </nav>
-                    </div>
-
-                    {/* Admin Section */}
-                    {isAdmin && (
-                      <div className="border-t border-gray-200 pt-6">
-                        <p className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-3">
-                          Admin
-                        </p>
-                        <nav className="space-y-2">
-                          <Link
-                            href="/admin/products"
-                            className="flex items-center gap-3 text-purple-700 hover:text-purple-800 font-medium py-2 px-3 rounded-lg hover:bg-purple-50 transition-all"
-                          >
-                            <Grid3x3 className="h-5 w-5" />
-                            Manage Products
+                        <DropdownMenuItem
+                          asChild
+                          className="rounded-lg focus:bg-gray-50 cursor-pointer"
+                        >
+                          <Link href="/dashboard">
+                            <LayoutDashboard className="mr-2 h-4 w-4 text-gray-500" />
+                            <span>Dashboard</span>
                           </Link>
-                          <Link
-                            href="/admin/orders"
-                            className="flex items-center gap-3 text-purple-700 hover:text-purple-800 font-medium py-2 px-3 rounded-lg hover:bg-purple-50 transition-all"
-                          >
-                            <Package className="h-5 w-5" />
-                            Manage Orders
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          asChild
+                          className="rounded-lg focus:bg-gray-50 cursor-pointer"
+                        >
+                          <Link href="/orders">
+                            <Package className="mr-2 h-4 w-4 text-gray-500" />
+                            <span>Orders</span>
                           </Link>
-                          <Link
-                            href="/admin/categories"
-                            className="flex items-center gap-3 text-purple-700 hover:text-purple-800 font-medium py-2 px-3 rounded-lg hover:bg-purple-50 transition-all"
-                          >
-                            <Tag className="h-5 w-5" />
-                            Categories
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          asChild
+                          className="rounded-lg focus:bg-gray-50 cursor-pointer"
+                        >
+                          <Link href="/settings">
+                            <Settings className="mr-2 h-4 w-4 text-gray-500" />
+                            <span>Settings</span>
                           </Link>
-                          <Link
-                            href="/admin/brands"
-                            className="flex items-center gap-3 text-purple-700 hover:text-purple-800 font-medium py-2 px-3 rounded-lg hover:bg-purple-50 transition-all"
-                          >
-                            <Store className="h-5 w-5" />
-                            Brands
-                          </Link>
-                        </nav>
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                      <DropdownMenuSeparator className="bg-gray-100" />
+                      <div className="p-1">
+                        <DropdownMenuItem
+                          className="rounded-lg text-red-600 focus:text-red-700 focus:bg-red-50 cursor-pointer"
+                          onClick={handleLogout}
+                          disabled={logoutMutation.isPending}
+                        >
+                          {logoutMutation.isPending ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <LogOut className="mr-2 h-4 w-4" />
+                          )}
+                          <span>Sign out</span>
+                        </DropdownMenuItem>
                       </div>
-                    )}
-                  </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-
-                {/* Footer Button */}
-                <div className="px-6 py-4 border-t bg-white/80">
-                  {user ? (
-                    <Button
-                      onClick={handleLogout}
-                      disabled={logoutMutation.isPending}
-                      className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white py-6 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
-                    >
-                      <LogOut className="mr-2 h-5 w-5" />
-                      Sign Out
-                    </Button>
-                  ) : (
-                    <Link href="/sign-in">
-                      <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-6 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300">
-                        Sign In
-                      </Button>
-                    </Link>
-                  )}
+              ) : (
+                <div className="hidden sm:flex items-center gap-3 ml-2 border-l border-gray-200 pl-4">
+                  <Button
+                    variant="ghost"
+                    className="text-sm font-medium text-gray-600 hover:text-gray-900"
+                    asChild
+                  >
+                    <Link href="/sign-in">Log in</Link>
+                  </Button>
+                  <Button
+                    className="rounded-full px-5 bg-gray-900 hover:bg-gray-800 text-white shadow-sm"
+                    asChild
+                  >
+                    <Link href="/register">Sign up</Link>
+                  </Button>
                 </div>
-              </div>
-            </SheetContent>
-          </Sheet>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </header>

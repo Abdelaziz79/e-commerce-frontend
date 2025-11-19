@@ -15,33 +15,181 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useProducts } from "@/hooks/use-product-queries";
 import { ProductsParams } from "@/types/product";
 import { SlidersHorizontal } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export default function ProductsPage() {
-  // --- STATE MANAGEMENT ---
-  const [page, setPage] = useState(1);
-  const [limit] = useState(12);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
-  const [priceRange, setPriceRange] = useState([0, 10000]);
-  const [selectedRating, setSelectedRating] = useState<number | null>(null);
-  const [sortBy, setSortBy] = useState("-createdAt");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // --- 1. READ STATE FROM URL (Source of Truth) ---
+  const page = Number(searchParams.get("page")) || 1;
+  const sortBy = searchParams.get("sort") || "-createdAt";
+  const selectedCategory = searchParams.get("category");
+  const selectedBrand = searchParams.get("brand");
+  const selectedRating = searchParams.get("rating")
+    ? Number(searchParams.get("rating"))
+    : null;
+  const featured = searchParams.get("featured") === "true";
+  const onSale = searchParams.get("onSale") === "true";
+
+  // --- 2. LOCAL STATE (Only for Debounced/Controlled Inputs) ---
+  // We initialize these from URL, but they live in state to allow typing/sliding without URL lag
+  const urlSearch = searchParams.get("search") || "";
+  const urlMinPrice = Number(searchParams.get("minPrice")) || 0;
+  const urlMaxPrice = Number(searchParams.get("maxPrice")) || 10000;
+
+  const [searchTerm, setSearchTerm] = useState(urlSearch);
+  const [priceRange, setPriceRange] = useState([urlMinPrice, urlMaxPrice]);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  // Debounce price range to avoid excessive API calls
+  // Sync local state if URL changes externally (e.g. Back button for search/price)
+  useEffect(() => {
+    setSearchTerm(urlSearch);
+  }, [urlSearch]);
+
+  useEffect(() => {
+    setPriceRange([urlMinPrice, urlMaxPrice]);
+  }, [urlMinPrice, urlMaxPrice]);
+
+  // Debounce the local state inputs
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const debouncedPriceRange = useDebounce(priceRange, 500);
 
-  // --- DATA FETCHING (PRODUCTS ONLY) ---
-  const queryParams: ProductsParams = {
-    page,
-    limit,
-    sort: sortBy,
-    "price[gte]": debouncedPriceRange[0],
-    "price[lte]": debouncedPriceRange[1],
-    ...(selectedRating && { "rating[gte]": selectedRating }),
-    ...(selectedCategory && { category: selectedCategory }),
-    ...(selectedBrand && { brand: selectedBrand }),
+  // --- 3. HELPER: UPDATE URL ---
+  const createQueryString = useCallback(
+    (params: Record<string, string | number | boolean | null | undefined>) => {
+      const newSearchParams = new URLSearchParams(searchParams.toString());
+
+      Object.entries(params).forEach(([key, value]) => {
+        if (
+          value === null ||
+          value === undefined ||
+          value === "" ||
+          value === false
+        ) {
+          newSearchParams.delete(key);
+        } else {
+          newSearchParams.set(key, String(value));
+        }
+      });
+
+      return newSearchParams.toString();
+    },
+    [searchParams]
+  );
+
+  const updateUrl = useCallback(
+    (updates: Record<string, string | number | boolean | null | undefined>) => {
+      const queryString = createQueryString(updates);
+      router.push(`${pathname}?${queryString}`, { scroll: false });
+    },
+    [createQueryString, pathname, router]
+  );
+
+  // --- 4. EFFECTS FOR DEBOUNCED INPUTS ---
+
+  // Effect: Update URL when Debounced Search changes
+  useEffect(() => {
+    if (debouncedSearchTerm !== urlSearch) {
+      updateUrl({ search: debouncedSearchTerm, page: 1 });
+    }
+  }, [debouncedSearchTerm, urlSearch, updateUrl]);
+
+  // Effect: Update URL when Debounced Price changes
+  useEffect(() => {
+    const [min, max] = debouncedPriceRange;
+    if (min !== urlMinPrice || max !== urlMaxPrice) {
+      updateUrl({
+        minPrice: min > 0 ? min : null,
+        maxPrice: max < 10000 ? max : null,
+        page: 1,
+      });
+    }
+  }, [debouncedPriceRange, urlMinPrice, urlMaxPrice, updateUrl]);
+
+  // --- 5. EVENT HANDLERS (Immediate URL Updates) ---
+
+  const handlePageChange = (newPage: number) => {
+    updateUrl({ page: newPage });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  const toggleCategory = (categoryId: string) => {
+    updateUrl({
+      category: selectedCategory === categoryId ? null : categoryId,
+      page: 1,
+    });
+  };
+
+  const toggleBrand = (brandId: string) => {
+    updateUrl({
+      brand: selectedBrand === brandId ? null : brandId,
+      page: 1,
+    });
+  };
+
+  const toggleFeatured = (val: boolean) => {
+    updateUrl({ featured: val || null, page: 1 });
+  };
+
+  const toggleOnSale = (val: boolean) => {
+    updateUrl({ onSale: val || null, page: 1 });
+  };
+
+  const handleRatingFilter = (rating: number) => {
+    updateUrl({
+      rating: selectedRating === rating ? null : rating,
+      page: 1,
+    });
+  };
+
+  const handleSortChange = (value: string) => {
+    updateUrl({ sort: value, page: 1 });
+  };
+
+  // Handlers for local state (Search & Price)
+  const handlePriceChange = (values: number[]) => {
+    setPriceRange(values);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+  };
+
+  const resetFilters = () => {
+    router.push(pathname); // Clear all params
+  };
+
+  // --- 6. API QUERY PARAMS ---
+  const queryParams: ProductsParams = useMemo(
+    () => ({
+      page,
+      limit: 12,
+      sort: sortBy,
+      "price[gte]": urlMinPrice,
+      "price[lte]": urlMaxPrice,
+      ...(selectedRating && { "rating[gte]": selectedRating }),
+      ...(selectedCategory && { category: selectedCategory }),
+      ...(selectedBrand && { brand: selectedBrand }),
+      ...(urlSearch && { search: urlSearch }),
+      ...(featured && { featured: true }),
+      ...(onSale && { onSale: true }),
+    }),
+    [
+      page,
+      sortBy,
+      urlMinPrice,
+      urlMaxPrice,
+      selectedRating,
+      selectedCategory,
+      selectedBrand,
+      urlSearch,
+      featured,
+      onSale,
+    ]
+  );
 
   const {
     data: productsData,
@@ -49,55 +197,15 @@ export default function ProductsPage() {
     error: productsError,
   } = useProducts(queryParams);
 
-  // --- EVENT HANDLERS ---
-  const toggleCategory = useCallback((categoryId: string) => {
-    setSelectedCategory((prev) => (prev === categoryId ? null : categoryId));
-    setPage(1);
-  }, []);
-
-  const toggleBrand = useCallback((brandId: string) => {
-    setSelectedBrand((prev) => (prev === brandId ? null : brandId));
-    setPage(1);
-  }, []);
-
-  const handleRatingFilter = useCallback((rating: number) => {
-    setSelectedRating((prev) => (prev === rating ? null : rating));
-    setPage(1);
-  }, []);
-
-  const handlePriceChange = useCallback((values: number[]) => {
-    setPriceRange(values);
-  }, []);
-
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedPriceRange]);
-
-  const resetFilters = useCallback(() => {
-    setSelectedCategory(null);
-    setSelectedBrand(null);
-    setPriceRange([0, 1000]);
-    setSelectedRating(null);
-    setSortBy("-createdAt");
-    setPage(1);
-  }, []);
-
-  const handleSortChange = useCallback((value: string) => {
-    setSortBy(value);
-    setPage(1);
-  }, []);
-
-  const handlePageChange = useCallback((newPage: number) => {
-    setPage(newPage);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
-
-  // Count active filters
+  // Count active filters for UI badge
   const activeFilterCount = [
     selectedCategory,
     selectedBrand,
     selectedRating,
-    priceRange[0] > 0 || priceRange[1] < 1000,
+    urlSearch,
+    featured,
+    onSale,
+    urlMinPrice > 0 || urlMaxPrice < 10000,
   ].filter(Boolean).length;
 
   return (
@@ -121,8 +229,7 @@ export default function ProductsPage() {
               <SheetHeader className="sr-only">
                 <SheetTitle>Product Filters</SheetTitle>
                 <SheetDescription>
-                  Filter products by category, brand, price, and rating. This
-                  title is hidden but required for screen readers.
+                  Filter products by category, brand, price, rating, and name.
                 </SheetDescription>
               </SheetHeader>
               <FilterSidebar
@@ -135,8 +242,14 @@ export default function ProductsPage() {
                 handlePriceChange={handlePriceChange}
                 selectedRating={selectedRating}
                 handleRatingFilter={handleRatingFilter}
+                featured={featured}
+                toggleFeatured={toggleFeatured}
+                onSale={onSale}
+                toggleOnSale={toggleOnSale}
                 resetFilters={resetFilters}
                 onClose={() => setMobileFiltersOpen(false)}
+                searchTerm={searchTerm}
+                handleSearchChange={handleSearchChange}
               />
             </SheetContent>
           </Sheet>
@@ -156,7 +269,13 @@ export default function ProductsPage() {
               handlePriceChange={handlePriceChange}
               selectedRating={selectedRating}
               handleRatingFilter={handleRatingFilter}
+              featured={featured}
+              toggleFeatured={toggleFeatured}
+              onSale={onSale}
+              toggleOnSale={toggleOnSale}
               resetFilters={resetFilters}
+              searchTerm={searchTerm}
+              handleSearchChange={handleSearchChange}
             />
           </div>
 
@@ -170,6 +289,7 @@ export default function ProductsPage() {
               setPage={handlePageChange}
               sortBy={sortBy}
               setSortBy={handleSortChange}
+              onResetFilters={resetFilters} // Pass reset logic to grid/empty state
             />
           </div>
         </div>

@@ -33,35 +33,45 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-blue-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-purple-600">
-            <User className="h-6 w-6 text-white" />
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md">
+        <div className="bg-white border border-gray-200 shadow-sm p-8 space-y-6">
+          {/* Icon */}
+          <div className="flex justify-center">
+            <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center">
+              <User className="h-6 w-6 text-gray-600" />
+            </div>
           </div>
-          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
-            Create your account
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Or{" "}
-            <Link
-              href="/sign-in"
-              className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
-            >
-              sign in to your existing account
-            </Link>
-          </p>
-        </div>
 
-        <div className="mt-8 bg-white py-8 px-4 shadow-xl rounded-xl sm:px-10">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <Label htmlFor="name" className="sr-only">
+          {/* Header */}
+          <div className="text-center space-y-2">
+            <h1 className="text-2xl font-bold text-gray-900">
+              Create your account
+            </h1>
+            <p className="text-sm text-gray-600">
+              Already have an account?{" "}
+              <Link
+                href="/sign-in"
+                className="font-medium text-gray-900 hover:underline"
+              >
+                Sign in
+              </Link>
+            </p>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Full Name */}
+            <div className="space-y-2">
+              <Label
+                htmlFor="name"
+                className="text-sm font-medium text-gray-700"
+              >
                 Full name
               </Label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400" />
+                  <User className="h-4 w-4 text-gray-400" />
                 </div>
                 <Input
                   id="name"
@@ -71,19 +81,23 @@ export default function RegisterPage() {
                   required
                   value={formData.name}
                   onChange={handleChange}
-                  className="pl-10"
-                  placeholder="Full name"
+                  className="pl-10 h-10 border-gray-200 rounded-none focus-visible:ring-gray-900"
+                  placeholder="John Doe"
                 />
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="email" className="sr-only">
+            {/* Email */}
+            <div className="space-y-2">
+              <Label
+                htmlFor="email"
+                className="text-sm font-medium text-gray-700"
+              >
                 Email address
               </Label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
+                  <Mail className="h-4 w-4 text-gray-400" />
                 </div>
                 <Input
                   id="email"
@@ -93,19 +107,23 @@ export default function RegisterPage() {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="pl-10"
-                  placeholder="Email address"
+                  className="pl-10 h-10 border-gray-200 rounded-none focus-visible:ring-gray-900"
+                  placeholder="you@example.com"
                 />
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="phone" className="sr-only">
+            {/* Phone */}
+            <div className="space-y-2">
+              <Label
+                htmlFor="phone"
+                className="text-sm font-medium text-gray-700"
+              >
                 Phone number
               </Label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Phone className="h-5 w-5 text-gray-400" />
+                  <Phone className="h-4 w-4 text-gray-400" />
                 </div>
                 <Input
                   id="phone"
@@ -115,19 +133,23 @@ export default function RegisterPage() {
                   required
                   value={formData.phone}
                   onChange={handleChange}
-                  className="pl-10"
-                  placeholder="Phone number"
+                  className="pl-10 h-10 border-gray-200 rounded-none focus-visible:ring-gray-900"
+                  placeholder="+1 (555) 000-0000"
                 />
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="password" className="sr-only">
+            {/* Password */}
+            <div className="space-y-2">
+              <Label
+                htmlFor="password"
+                className="text-sm font-medium text-gray-700"
+              >
                 Password
               </Label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
+                  <Lock className="h-4 w-4 text-gray-400" />
                 </div>
                 <Input
                   id="password"
@@ -137,37 +159,72 @@ export default function RegisterPage() {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="pl-10 pr-10"
-                  placeholder="Password"
+                  className="pl-10 pr-10 h-10 border-gray-200 rounded-none focus-visible:ring-gray-900"
+                  placeholder="••••••••"
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center hover:text-gray-600 transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
+                    <EyeOff className="h-4 w-4 text-gray-400" />
                   ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
+                    <Eye className="h-4 w-4 text-gray-400" />
                   )}
                 </button>
               </div>
+              <p className="text-xs text-gray-500">
+                Must be at least 8 characters
+              </p>
             </div>
 
-            <div>
-              <Button
-                type="submit"
-                disabled={registerMutation.isPending}
-                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-200"
-              >
-                {registerMutation.isPending && (
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              disabled={registerMutation.isPending}
+              className="w-full h-10 bg-gray-900 hover:bg-gray-800 text-white rounded-none font-medium transition-colors mt-6"
+            >
+              {registerMutation.isPending ? (
+                <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Create account
-              </Button>
-            </div>
+                  Creating account...
+                </>
+              ) : (
+                "Create account"
+              )}
+            </Button>
           </form>
+
+          {/* Terms */}
+          <p className="text-xs text-center text-gray-500">
+            By creating an account, you agree to our{" "}
+            <Link
+              href="/terms"
+              className="font-medium text-gray-700 hover:text-gray-900"
+            >
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link
+              href="/privacy"
+              className="font-medium text-gray-700 hover:text-gray-900"
+            >
+              Privacy Policy
+            </Link>
+          </p>
         </div>
+
+        {/* Help Text */}
+        <p className="mt-6 text-center text-xs text-gray-500">
+          Need help?{" "}
+          <Link
+            href="/support"
+            className="font-medium text-gray-700 hover:text-gray-900"
+          >
+            Contact support
+          </Link>
+        </p>
       </div>
     </div>
   );

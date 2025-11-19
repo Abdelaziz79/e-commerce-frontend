@@ -7,40 +7,27 @@ import { CategoryModal } from "@/components/category/CategoryModal";
 import { useCategoryModal } from "@/components/category/hooks/useCategoryModal";
 import { AttributesForm } from "@/components/products/create/AttributesForm";
 import { BasicInfoForm } from "@/components/products/create/BasicInfoForm";
-import { FormActions } from "@/components/products/create/FormActions";
+// import { FormActions } from "@/components/products/create/FormActions";
 import { ImageForm } from "@/components/products/create/ImageForm";
 import { OrganizationForm } from "@/components/products/create/OrganizationForm";
 import { PricingForm } from "@/components/products/create/PricingForm";
-import { ProductHeader } from "@/components/products/create/ProductHeader";
 import { ProductSettingsForm } from "@/components/products/create/ProductSettingsForm";
 import { RelatedProductsForm } from "@/components/products/create/RelatedProductsForm";
 import { VariationsForm } from "@/components/products/create/VariationsForm";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { useBrands } from "@/hooks/use-brand-hooks";
-import { useCategories } from "@/hooks/use-category-hooks";
+import { FormActions } from "@/components/shared/FormAction";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { useCreateProduct } from "@/hooks/use-product-mutations";
 import {
   CreateProductData,
   ProductDimensions,
   ProductVariation,
 } from "@/types/product";
-import { Loader2 } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
 import { useEffect, useState } from "react";
 
 function CreateProductContent() {
   const createProductMutation = useCreateProduct();
-
-  // Data Fetching for Modals
-  const {
-    data: categoriesData,
-    isLoading: isLoadingCategories,
-    error: categoriesError,
-  } = useCategories();
-  const {
-    data: brandsData,
-    isLoading: isLoadingBrands,
-    error: brandsError,
-  } = useBrands();
 
   // Modals
   const brandModal = useBrandModal();
@@ -139,30 +126,22 @@ function CreateProductContent() {
     handleInputChange("hasVariations", (formData.variations?.length || 0) > 0);
   }, [formData.variations]);
 
-  if (isLoadingCategories || isLoadingBrands) {
-    return (
-      <div className="flex justify-center items-center h-screen bg-gray-50">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-      </div>
-    );
-  }
-
-  if (categoriesError || brandsError) {
-    return (
-      <div className="text-center py-10">
-        <p className="text-red-600">
-          Error fetching modal data:{" "}
-          {categoriesError?.message || brandsError?.message}
-        </p>
-      </div>
-    );
-  }
-
   return (
     <>
       <div className="min-h-screen bg-gray-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <ProductHeader />
+          {/* <ProductHeader /> */}
+          <PageHeader
+            pageTitle="Add New Product"
+            pageDescription="Fill in the information below to add a new product to your inventory. Fields marked with * are required."
+            headerButtons={[
+              {
+                title: "Back to Products",
+                href: "/admin/products",
+                icon: <ArrowLeft className="h-3 w-3 " />,
+              },
+            ]}
+          />
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
               {/* Left Column */}
@@ -223,7 +202,13 @@ function CreateProductContent() {
               </div>
             </div>
 
-            <FormActions isPending={createProductMutation.isPending} />
+            <FormActions
+              isPending={createProductMutation.isPending}
+              submitText="Create Product"
+              pendingText="Creating..."
+              submitIcon={<Check className="mr-2 h-4 w-4" />}
+              cancelHref="/admin/products"
+            />
           </form>
         </div>
       </div>
@@ -245,7 +230,6 @@ function CreateProductContent() {
         formData={categoryModal.formData}
         setFormData={categoryModal.setFormData}
         onSubmit={categoryModal.handleSubmit}
-        categories={categoriesData?.data.categories || []}
         isSubmitting={categoryModal.isSubmitting}
       />
     </>

@@ -1,3 +1,4 @@
+// components/products/filter-sidebar/FilterSidebar.tsx
 "use client";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -11,7 +12,9 @@ import { FilterHeader } from "./FilterHeader";
 import { FilterSection } from "./FilterSection";
 import { FilterSidebarLoading } from "./FilterSidebarLoading";
 import { PriceRangeFilter } from "./PriceRangeFilter";
+import { ProductSearchInput } from "./ProductSearchInput";
 import { RatingFilter } from "./RatingFilter";
+import { StatusFilter } from "./StatusFilter"; // Import the new component
 
 interface FilterSidebarProps {
   isLoading: boolean;
@@ -23,8 +26,16 @@ interface FilterSidebarProps {
   handlePriceChange: (values: number[]) => void;
   selectedRating: number | null;
   handleRatingFilter: (rating: number) => void;
+  // New Props
+  featured: boolean;
+  toggleFeatured: (val: boolean) => void;
+  onSale: boolean;
+  toggleOnSale: (val: boolean) => void;
+
   resetFilters: () => void;
   onClose?: () => void;
+  searchTerm: string;
+  handleSearchChange: (value: string) => void;
 }
 
 export function FilterSidebar({
@@ -37,15 +48,22 @@ export function FilterSidebar({
   handlePriceChange,
   selectedRating,
   handleRatingFilter,
+  featured,
+  toggleFeatured,
+  onSale,
+  toggleOnSale,
   resetFilters,
   onClose,
+  searchTerm,
+  handleSearchChange,
 }: FilterSidebarProps) {
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isStatusOpen, setIsStatusOpen] = useState(false); // New state
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isBrandOpen, setIsBrandOpen] = useState(false);
   const [isPriceOpen, setIsPriceOpen] = useState(false);
   const [isRatingOpen, setIsRatingOpen] = useState(false);
 
-  // Still need to know if there are any categories or brands to show the section
   const { data: categoriesData, isLoading: isCategoriesLoading } =
     useInfiniteCategories({ limit: 1 });
   const { data: brandsData, isLoading: isBrandsLoading } = useInfiniteBrands({
@@ -53,17 +71,23 @@ export function FilterSidebar({
   });
 
   const hasActiveFilters =
+    !!searchTerm ||
     !!selectedCategory ||
     !!selectedBrand ||
     !!selectedRating ||
+    featured ||
+    onSale ||
     priceRange[0] > 0 ||
-    priceRange[1] < 1000;
+    priceRange[1] < 10000;
 
   const activeFilterCount = [
+    searchTerm,
     selectedCategory,
     selectedBrand,
     selectedRating,
-    priceRange[0] > 0 || priceRange[1] < 1000,
+    featured,
+    onSale,
+    priceRange[0] > 0 || priceRange[1] < 10000,
   ].filter(Boolean).length;
 
   const handleResetFilters = () => {
@@ -71,8 +95,7 @@ export function FilterSidebar({
     if (onClose) onClose();
   };
 
-  const isComponentLoading =
-    isLoading || isCategoriesLoading || isBrandsLoading;
+  const isComponentLoading = isCategoriesLoading || isBrandsLoading;
 
   if (isComponentLoading) {
     return <FilterSidebarLoading />;
@@ -94,12 +117,39 @@ export function FilterSidebar({
         <div className="flex-1 min-h-0 overflow-hidden">
           <ScrollArea className="h-full">
             <div className="p-3 space-y-4">
+              <FilterSection
+                title="Search"
+                isOpen={isSearchOpen}
+                onToggle={() => setIsSearchOpen(!isSearchOpen)}
+                makeBorder={false}
+              >
+                <ProductSearchInput
+                  searchTerm={searchTerm}
+                  onSearchChange={handleSearchChange}
+                  isLoading={isLoading}
+                />
+              </FilterSection>
+
+              {/* New Status Section */}
+              <FilterSection
+                title="Status"
+                isOpen={isStatusOpen}
+                onToggle={() => setIsStatusOpen(!isStatusOpen)}
+              >
+                <StatusFilter
+                  featured={featured}
+                  onToggleFeatured={toggleFeatured}
+                  onSale={onSale}
+                  onToggleOnSale={toggleOnSale}
+                />
+              </FilterSection>
+
               {hasCategories && (
                 <FilterSection
                   title="Categories"
                   isOpen={isCategoryOpen}
                   onToggle={() => setIsCategoryOpen(!isCategoryOpen)}
-                  makeBorder={false}
+                  makeBorder={true}
                 >
                   <CategoryFilter
                     selectedCategory={selectedCategory}

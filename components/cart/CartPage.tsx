@@ -1,6 +1,7 @@
 // components/cart/CartPage.tsx
 "use client";
 
+import { toast } from "sonner";
 import {
   useCart,
   useCartCount,
@@ -19,9 +20,25 @@ export default function CartPage() {
   const clearCart = useClearCart();
 
   const handleClearCart = () => {
-    if (window.confirm("Are you sure you want to clear your cart?")) {
-      clearCart.mutate();
-    }
+    toast("Are you sure you want to clear your cart?", {
+      action: {
+        label: "Clear",
+        onClick: () => {
+          clearCart.mutate(undefined, {
+            onSuccess: () => {
+              toast.success("Cart cleared successfully");
+            },
+            onError: () => {
+              toast.error("Failed to clear cart");
+            },
+          });
+        },
+      },
+      cancel: {
+        label: "Cancel",
+        onClick: () => {},
+      },
+    });
   };
 
   if (isLoading) {
@@ -39,14 +56,12 @@ export default function CartPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <CartView
-        cart={cart}
-        cartCount={cartCount}
-        cartTotal={cartTotal}
-        onClearCart={handleClearCart}
-        isClearingCart={clearCart.isPending}
-      />
-    </div>
+    <CartView
+      cart={cart}
+      cartCount={cartCount}
+      cartTotal={cartTotal}
+      onClearCart={handleClearCart}
+      isClearingCart={clearCart.isPending}
+    />
   );
 }

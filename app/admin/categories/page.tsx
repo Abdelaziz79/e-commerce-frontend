@@ -8,11 +8,11 @@ import {
   useSearchCategories,
   useToggleCategoryActiveStatus,
 } from "@/hooks/use-category-hooks";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { CategoryFilters } from "@/components/category/CategoryFilters";
 import { CategoryGrid } from "@/components/category/CategoryGrid";
-import { CategoryHeader } from "@/components/category/CategoryHeader";
 import { CategoryList } from "@/components/category/CategoryList";
 import { CategoryModal } from "@/components/category/CategoryModal";
 import { EmptyState } from "@/components/category/EmptyState";
@@ -20,6 +20,8 @@ import { ErrorState } from "@/components/category/ErrorState";
 import { LoadingState } from "@/components/category/LoadingState";
 import { PaginationControls } from "@/components/PaginationControls";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { Plus } from "lucide-react";
 
 type ViewMode = "grid" | "list";
 
@@ -40,31 +42,22 @@ function CategoryManagementContent() {
     handleStatusChange,
   } = useCategoryFilters();
 
-  // Use search hook when in search mode
   const {
     data: searchResponse,
     isLoading: isSearching,
     error: searchError,
+    refetch: refetchSearch,
   } = useSearchCategories(searchParams || { q: "" }, {
     isAdmin: true,
     enabled: isSearchMode,
   });
 
-  // Use regular query when not searching
   const {
-    data: categoriesResponse,
+    data: categoriesData,
     isLoading: isFetching,
     error: fetchError,
-  } = useCategories(queryParams, {
-    isAdmin: true,
-  });
-
-  // Fetch all categories for parent dropdown (could be cached)
-  const { data: allCategoriesData } = useCategories(
-    { limit: 1000 },
-    { isAdmin: true }
-  );
-  const allCategories = allCategoriesData?.data?.categories || [];
+    refetch: refetchCategories,
+  } = useCategories(queryParams, { isAdmin: true });
 
   const {
     isModalOpen,
@@ -80,31 +73,68 @@ function CategoryManagementContent() {
 
   const toggleStatusMutation = useToggleCategoryActiveStatus();
 
+  useEffect(() => {
+    if (!isModalOpen) {
+      document.body.style.pointerEvents = "";
+      document.body.style.removeProperty("pointer-events");
+      const portalElements = document.querySelectorAll("[data-radix-portal]");
+      portalElements.forEach((el) => {
+        if (el.children.length === 0) el.remove();
+      });
+    }
+  }, [isModalOpen]);
+
   const handleToggleStatus = (categoryId: string) => {
     toggleStatusMutation.mutate(categoryId);
   };
 
-  // Determine which data to use based on search mode
+  const handleConfirmDelete = async (id: string) => {
+    const confirmed = await new Promise<boolean>((resolve) => {
+      toast("Delete category?", {
+        description: "This action cannot be undone.",
+        action: {
+          label: "Delete",
+          onClick: () => resolve(true),
+        },
+        cancel: {
+          label: "Cancel",
+          onClick: () => resolve(false),
+        },
+      });
+    });
+
+    if (confirmed) {
+      handleDelete(id);
+    }
+  };
+
   const isLoading = isSearchMode ? isSearching : isFetching;
   const error = isSearchMode ? searchError : fetchError;
-  const currentResponse = isSearchMode ? searchResponse : categoriesResponse;
+  const refetch = isSearchMode ? refetchSearch : refetchCategories;
 
-  if (isLoading && !currentResponse) {
+  if (isLoading && !searchResponse && !categoriesData) {
     return <LoadingState />;
   }
 
   if (error) {
-    return <ErrorState error={error} />;
+    return <ErrorState error={error} onRetry={() => refetch()} />;
   }
 
-  const categories = currentResponse?.data?.categories || [];
-  const results = currentResponse?.results || 0; // Items on current page
-  const totalCategories = currentResponse?.total || 0; // Total items across all pages
+  const categories = isSearchMode
+    ? searchResponse?.data?.categories || []
+    : categoriesData?.data?.categories || [];
 
-  // Calculate total pages based on current mode's limit
+  const results = isSearchMode
+    ? searchResponse?.results || 0
+    : categoriesData?.results || 0;
+
+  const totalCategories = isSearchMode
+    ? searchResponse?.total || 0
+    : categoriesData?.total || 0;
+
   const currentLimit = isSearchMode
-    ? searchParams?.limit || 12
-    : queryParams.limit || 12;
+    ? searchParams?.limit || 16
+    : queryParams.limit || 16;
 
   const effectiveTotal =
     isSearchMode && page === 1 && results < currentLimit
@@ -115,9 +145,20 @@ function CategoryManagementContent() {
   const hasCategories = categories.length > 0;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto p-6 lg:p-8 space-y-6">
-        <CategoryHeader />
+        <PageHeader
+          pageTitle="Categories"
+          pageDescription="Organize your products into categories and subcategories for better navigation"
+          pageButtons={[
+            {
+              title: "Add Category",
+              icon: <Plus className="h-4 w-4" />,
+              onClick: () => handleOpenModal(null),
+            },
+          ]}
+        />
+
         <CategoryFilters
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
@@ -139,42 +180,45 @@ function CategoryManagementContent() {
         ) : viewMode === "grid" ? (
           <CategoryGrid
             categories={categories}
-            allCategories={allCategories}
+            allCategories={categories}
             onEdit={handleOpenModal}
-            onDelete={handleDelete}
+            onDelete={handleConfirmDelete}
             onToggleStatus={handleToggleStatus}
           />
         ) : (
           <CategoryList
             categories={categories}
-            allCategories={allCategories}
+            allCategories={categories}
             onEdit={handleOpenModal}
-            onDelete={handleDelete}
+            onDelete={handleConfirmDelete}
             onToggleStatus={handleToggleStatus}
           />
         )}
 
-        {/* Only show pagination if there are categories and more than 1 page */}
         {hasCategories && totalPages > 1 && (
-          <PaginationControls
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-            totalResults={effectiveTotal}
-            resultsPerPage={currentLimit}
-          />
+          <div className="pt-6">
+            <PaginationControls
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              totalResults={effectiveTotal}
+              resultsPerPage={currentLimit}
+            />
+          </div>
         )}
 
-        <CategoryModal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          editingCategory={editingCategory}
-          formData={formData}
-          setFormData={setFormData}
-          onSubmit={handleSubmit}
-          categories={allCategories}
-          isSubmitting={isSubmitting}
-        />
+        {isModalOpen && (
+          <CategoryModal
+            key={editingCategory?._id || "new"}
+            isOpen={isModalOpen}
+            onClose={handleCloseModal}
+            editingCategory={editingCategory}
+            formData={formData}
+            setFormData={setFormData}
+            onSubmit={handleSubmit}
+            isSubmitting={isSubmitting}
+          />
+        )}
       </div>
     </div>
   );

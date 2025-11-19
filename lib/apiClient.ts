@@ -967,7 +967,16 @@ class ApiClient {
     if (data.rating !== undefined) requestData.rating = data.rating;
     if (data.comment !== undefined) requestData.comment = data.comment;
     if (data.title !== undefined) requestData.title = data.title;
-    if (data.images && data.images.length > 0) requestData.images = data.images;
+
+    // CRITICAL: Always include existingImages, even if empty array
+    // This tells backend which images to keep
+    if (data.existingImages !== undefined) {
+      requestData.existingImages = data.existingImages;
+    }
+
+    if (data.images && data.images.length > 0) {
+      requestData.images = data.images;
+    }
 
     const body = this.createRequestBody(requestData, ["images"]);
     return this.request<ReviewResponse>("put", `/reviews/${reviewId}`, body);

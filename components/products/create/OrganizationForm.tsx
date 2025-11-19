@@ -11,7 +11,7 @@ import { useSearchableInfiniteAdminCategories } from "@/hooks/use-category-hooks
 import { CreateProductData } from "@/types/product";
 import { FolderKanban, Plus, X } from "lucide-react";
 import { useState } from "react";
-import { SearchableSelect } from "./SearchableSelect";
+import { SearchableSelect } from "../../shared/SearchableSelect";
 
 interface OrganizationFormProps {
   formData: CreateProductData;

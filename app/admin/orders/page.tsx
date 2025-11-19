@@ -1,49 +1,30 @@
-// app/admin/orders/page.tsx
+// app/admin/orders/page.tsx - FIXED VERSION
 "use client";
 
 import { AdminOrdersView } from "@/components/admin/orders/AdminOrdersView";
+import { useOrderFilters } from "@/components/admin/orders/hooks/useOrderFilters";
 import { LoadingDisplay } from "@/components/cart/LoadingDisplay";
-import { ErrorDisplay } from "@/components/favorites/ErrorDisplay";
-import { useDebounce } from "@/hooks/use-debounce";
+import ErrorState from "@/components/shared/ErrorState";
 import { useExportOrders, useOrders } from "@/hooks/use-orders";
-import { OrderStatus } from "@/types/order";
-import { useEffect, useState } from "react";
 
 export default function AdminOrdersPage() {
-  const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const {
+    searchQuery,
+    statusFilter,
+    queryParams,
+    handlePageChange,
+    setSearchQuery,
+    handleStatusChange,
+  } = useOrderFilters();
 
-  // Debounce the search query to avoid excessive API calls while typing
-  const debouncedSearchQuery = useDebounce(searchQuery, 500);
-
-  // Export orders mutation
   const exportOrdersMutation = useExportOrders();
 
-  // Use the admin-specific 'useOrders' hook
-  const { data, isLoading, error } = useOrders({
-    page,
-    limit: 15,
-    status: statusFilter === "all" ? undefined : statusFilter,
-    keyword: debouncedSearchQuery || undefined,
-  });
+  const { data, isLoading, error } = useOrders(queryParams);
 
-  // Reset page to 1 when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [statusFilter, debouncedSearchQuery]);
-
-  // Handle export orders
   const handleExportOrders = () => {
     exportOrdersMutation.mutate({
       status: statusFilter === "all" ? undefined : statusFilter,
     });
-  };
-
-  // Handle page change with scroll to top
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage);
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   if (isLoading && !data) {
@@ -57,8 +38,9 @@ export default function AdminOrdersPage() {
   if (error) {
     return (
       <div className="container mx-auto max-w-7xl px-4 py-8">
-        <ErrorDisplay
-          message={error.message || "Failed to load orders. Please try again."}
+        <ErrorState
+          error={error}
+          title={error.message || "Failed to load orders. Please try again."}
         />
       </div>
     );
@@ -75,7 +57,7 @@ export default function AdminOrdersPage() {
       searchQuery={searchQuery}
       setSearchQuery={setSearchQuery}
       statusFilter={statusFilter}
-      setStatusFilter={setStatusFilter}
+      setStatusFilter={handleStatusChange}
       onPageChange={handlePageChange}
       onExportOrders={handleExportOrders}
       isExporting={exportOrdersMutation.isPending}

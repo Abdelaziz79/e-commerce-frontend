@@ -11,7 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AddTrackingInfoData } from "@/types/order";
-import { Loader2 } from "lucide-react";
+import { Loader2, Truck, Hash, Calendar, Package } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface AddTrackingInfoDialogProps {
@@ -31,7 +31,6 @@ export function AddTrackingInfoDialog({
   const [trackingNumber, setTrackingNumber] = useState("");
   const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState("");
 
-  // Reset form when dialog closes
   useEffect(() => {
     if (!isOpen) {
       setCarrier("");
@@ -54,57 +53,100 @@ export function AddTrackingInfoDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add Shipping Information</DialogTitle>
-          <DialogDescription>
-            Enter the carrier and tracking number for this order.
+      <DialogContent className="max-w-md rounded-xl border-gray-200 shadow-lg">
+        <DialogHeader className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-gray-900 rounded-lg">
+              <Truck className="h-4 w-4 text-white" />
+            </div>
+            <DialogTitle className="text-xl font-semibold text-gray-900">
+              Add Shipping Information
+            </DialogTitle>
+          </div>
+          <DialogDescription className="text-sm text-gray-600">
+            Enter tracking details to keep your customer informed about their
+            order.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="carrier">
+
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label
+              htmlFor="carrier"
+              className="text-sm font-medium text-gray-900"
+            >
               Carrier <span className="text-red-500">*</span>
             </Label>
-            <Input
-              id="carrier"
-              value={carrier}
-              onChange={(e) => setCarrier(e.target.value)}
-              placeholder="e.g., FedEx, UPS, USPS"
-              disabled={isPending}
-            />
+            <div className="relative">
+              <Package className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                id="carrier"
+                value={carrier}
+                onChange={(e) => setCarrier(e.target.value)}
+                placeholder="e.g., FedEx, UPS, USPS"
+                className="pl-10 h-10 border-gray-200 rounded-lg focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10"
+                disabled={isPending}
+              />
+            </div>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="trackingNumber">
+
+          <div className="space-y-2">
+            <Label
+              htmlFor="trackingNumber"
+              className="text-sm font-medium text-gray-900"
+            >
               Tracking Number <span className="text-red-500">*</span>
             </Label>
-            <Input
-              id="trackingNumber"
-              value={trackingNumber}
-              onChange={(e) => setTrackingNumber(e.target.value)}
-              placeholder="Enter tracking number"
-              disabled={isPending}
-            />
+            <div className="relative">
+              <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                id="trackingNumber"
+                value={trackingNumber}
+                onChange={(e) => setTrackingNumber(e.target.value)}
+                placeholder="Enter tracking number"
+                className="pl-10 h-10 border-gray-200 rounded-lg focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10"
+                disabled={isPending}
+              />
+            </div>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="estimatedDeliveryDate">
-              Estimated Delivery Date (Optional)
+
+          <div className="space-y-2">
+            <Label
+              htmlFor="estimatedDeliveryDate"
+              className="text-sm font-medium text-gray-900"
+            >
+              Estimated Delivery Date{" "}
+              <span className="text-gray-500 text-xs">(Optional)</span>
             </Label>
-            <Input
-              id="estimatedDeliveryDate"
-              type="date"
-              value={estimatedDeliveryDate}
-              onChange={(e) => setEstimatedDeliveryDate(e.target.value)}
-              min={new Date().toISOString().split("T")[0]}
-              disabled={isPending}
-            />
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                id="estimatedDeliveryDate"
+                type="date"
+                value={estimatedDeliveryDate}
+                onChange={(e) => setEstimatedDeliveryDate(e.target.value)}
+                min={new Date().toISOString().split("T")[0]}
+                className="pl-10 h-10 border-gray-200 rounded-lg focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10"
+                disabled={isPending}
+              />
+            </div>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isPending}>
+
+        <DialogFooter className="gap-2">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={isPending}
+            className="flex-1 h-10 rounded-lg border-gray-200 hover:bg-gray-50"
+          >
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={isPending || !isValid}>
+          <Button
+            onClick={handleConfirm}
+            disabled={isPending || !isValid}
+            className="flex-1 h-10 rounded-lg bg-gray-900 hover:bg-gray-800"
+          >
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isPending ? "Saving..." : "Save Information"}
           </Button>

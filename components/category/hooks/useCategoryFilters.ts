@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { CategoriesParams, CategorySearchParams } from "@/types/category";
 import { useDebounce } from "@/hooks/use-debounce";
+
 export type CategoryStatusFilter = "all" | "active" | "inactive";
 
 export function useCategoryFilters() {
@@ -11,12 +12,11 @@ export function useCategoryFilters() {
   const [sortOrder, setSortOrder] = useState("-createdAt");
   const [statusFilter, setStatusFilter] = useState<CategoryStatusFilter>("all");
 
-  // Debounce search query with custom hook
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   const handleSearchQueryChange = useCallback((query: string) => {
     setSearchQuery(query);
-    setPage(1); // Reset to first page when searching
+    setPage(1);
   }, []);
 
   const handlePageChange = useCallback((newPage: number) => {
@@ -34,30 +34,26 @@ export function useCategoryFilters() {
     setPage(1);
   }, []);
 
-  // Determine if we should use search or regular query
   const isSearchMode = debouncedSearchQuery.trim().length > 0;
 
-  // Build search params
   const searchParams: CategorySearchParams | null = useMemo(() => {
     if (!isSearchMode) return null;
 
     return {
       q: debouncedSearchQuery,
       page,
-      limit: 12,
+      limit: 16,
       sort: sortOrder,
     };
   }, [debouncedSearchQuery, page, sortOrder, isSearchMode]);
 
-  // Build regular query params
   const queryParams: CategoriesParams = useMemo(() => {
     const params: CategoriesParams = {
       page,
-      limit: 12,
+      limit: 16,
       sort: sortOrder,
     };
 
-    // Add status filter to regular queries
     if (statusFilter === "active") {
       params.isActive = true;
     } else if (statusFilter === "inactive") {

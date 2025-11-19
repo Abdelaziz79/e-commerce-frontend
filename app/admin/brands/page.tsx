@@ -1,4 +1,5 @@
-// ===== app/admin/brands/page.tsx =====
+// app/admin/brands/page.tsx
+
 "use client";
 
 import { useBrandFilters } from "@/components/brand/hooks/useBrandFilters";
@@ -8,11 +9,11 @@ import {
   useSearchBrands,
   useToggleBrandActiveStatus,
 } from "@/hooks/use-brand-hooks";
-import { useState } from "react";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
 import { BrandFilters } from "@/components/brand/BrandFilters";
 import { BrandGrid } from "@/components/brand/BrandGrid";
-import { BrandHeader } from "@/components/brand/BrandHeader";
 import { BrandList } from "@/components/brand/BrandList";
 import { BrandModal } from "@/components/brand/BrandModal";
 import { EmptyState } from "@/components/brand/EmptyState";
@@ -20,17 +21,17 @@ import { ErrorState } from "@/components/brand/ErrorState";
 import { LoadingState } from "@/components/brand/LoadingState";
 import { PaginationControls } from "@/components/PaginationControls";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-
-type ViewMode = "grid" | "list";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { Plus } from "lucide-react";
 
 function BrandManagementContent() {
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
-
   const {
     page,
     searchQuery,
     sortOrder,
     statusFilter,
+    viewMode,
+    setViewMode,
     isSearchMode,
     searchParams,
     queryParams,
@@ -40,24 +41,22 @@ function BrandManagementContent() {
     handleStatusChange,
   } = useBrandFilters();
 
-  // Use search hook when in search mode
   const {
     data: searchResponse,
     isLoading: isSearching,
     error: searchError,
+    refetch: refetchSearch,
   } = useSearchBrands(searchParams || { q: "" }, {
     isAdmin: true,
     enabled: isSearchMode,
   });
 
-  // Use regular query when not searching
   const {
-    data: brandsResponse,
+    data: brandsData,
     isLoading: isFetching,
     error: fetchError,
-  } = useBrands(queryParams, {
-    isAdmin: true,
-  });
+    refetch: refetchBrands,
+  } = useBrands(queryParams, { isAdmin: true });
 
   const {
     isModalOpen,
@@ -73,34 +72,69 @@ function BrandManagementContent() {
 
   const toggleStatusMutation = useToggleBrandActiveStatus();
 
+  useEffect(() => {
+    if (!isModalOpen) {
+      document.body.style.pointerEvents = "";
+      document.body.style.removeProperty("pointer-events");
+      const portalElements = document.querySelectorAll("[data-radix-portal]");
+      portalElements.forEach((el) => {
+        if (el.children.length === 0) el.remove();
+      });
+    }
+  }, [isModalOpen]);
+
   const handleToggleStatus = (brandId: string) => {
     toggleStatusMutation.mutate(brandId);
   };
 
-  // Determine which data to use based on search mode
+  const handleConfirmDelete = async (id: string) => {
+    const confirmed = await new Promise<boolean>((resolve) => {
+      toast("Delete brand?", {
+        description: "This action cannot be undone.",
+        action: {
+          label: "Delete",
+          onClick: () => resolve(true),
+        },
+        cancel: {
+          label: "Cancel",
+          onClick: () => resolve(false),
+        },
+      });
+    });
+
+    if (confirmed) {
+      handleDelete(id);
+    }
+  };
+
   const isLoading = isSearchMode ? isSearching : isFetching;
   const error = isSearchMode ? searchError : fetchError;
-  const currentResponse = isSearchMode ? searchResponse : brandsResponse;
+  const refetch = isSearchMode ? refetchSearch : refetchBrands;
 
-  if (isLoading && !currentResponse) {
+  if (isLoading && !searchResponse && !brandsData) {
     return <LoadingState />;
   }
 
   if (error) {
-    return <ErrorState error={error} />;
+    return <ErrorState error={error} onRetry={() => refetch()} />;
   }
 
-  const brands = currentResponse?.data?.brands || [];
-  const results = currentResponse?.results || 0; // Items on current page
-  const totalBrands = currentResponse?.total || 0; // Total items across all pages
+  const brands = isSearchMode
+    ? searchResponse?.data?.brands || []
+    : brandsData?.data?.brands || [];
 
-  // Calculate total pages based on current mode's limit
+  const results = isSearchMode
+    ? searchResponse?.results || 0
+    : brandsData?.results || 0;
+
+  const totalBrands = isSearchMode
+    ? searchResponse?.total || 0
+    : brandsData?.total || 0;
+
   const currentLimit = isSearchMode
-    ? searchParams?.limit || 12
-    : queryParams.limit || 12;
+    ? searchParams?.limit || 16
+    : queryParams.limit || 16;
 
-  // WORKAROUND: If in search mode and results is less than limit and we're on page 1,
-  // it means this is the only page, so use results as total
   const effectiveTotal =
     isSearchMode && page === 1 && results < currentLimit
       ? results
@@ -110,9 +144,20 @@ function BrandManagementContent() {
   const hasBrands = brands.length > 0;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto p-6 lg:p-8 space-y-6">
-        <BrandHeader />
+        <PageHeader
+          pageTitle="Brands"
+          pageDescription="Manage your product brands and manufacturers for better product organization"
+          pageButtons={[
+            {
+              title: "Add Brand",
+              icon: <Plus className="h-4 w-4" />,
+              onClick: () => handleOpenModal(null),
+            },
+          ]}
+        />
+
         <BrandFilters
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
@@ -135,38 +180,42 @@ function BrandManagementContent() {
           <BrandGrid
             brands={brands}
             onEdit={handleOpenModal}
-            onDelete={handleDelete}
+            onDelete={handleConfirmDelete}
             onToggleStatus={handleToggleStatus}
           />
         ) : (
           <BrandList
             brands={brands}
             onEdit={handleOpenModal}
-            onDelete={handleDelete}
+            onDelete={handleConfirmDelete}
             onToggleStatus={handleToggleStatus}
           />
         )}
 
-        {/* Only show pagination if there are brands and more than 1 page */}
         {hasBrands && totalPages > 1 && (
-          <PaginationControls
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-            totalResults={effectiveTotal}
-            resultsPerPage={currentLimit}
-          />
+          <div className="pt-6">
+            <PaginationControls
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              totalResults={effectiveTotal}
+              resultsPerPage={currentLimit}
+            />
+          </div>
         )}
 
-        <BrandModal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          editingBrand={editingBrand}
-          formData={formData}
-          setFormData={setFormData}
-          onSubmit={handleSubmit}
-          isSubmitting={isSubmitting}
-        />
+        {isModalOpen && (
+          <BrandModal
+            key={editingBrand?._id || "new"}
+            isOpen={isModalOpen}
+            onClose={handleCloseModal}
+            editingBrand={editingBrand}
+            formData={formData}
+            setFormData={setFormData}
+            onSubmit={handleSubmit}
+            isSubmitting={isSubmitting}
+          />
+        )}
       </div>
     </div>
   );

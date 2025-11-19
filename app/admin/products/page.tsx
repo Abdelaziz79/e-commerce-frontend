@@ -1,20 +1,21 @@
 // app/admin/products/page.tsx
 "use client";
 
-import { useAdminProducts } from "@/hooks/use-admin-products";
-import { ProductsHeader } from "@/components/products/admin/ProductsHeader";
-import { StatCards } from "@/components/products/admin/StatCards";
-import { TableToolbar } from "@/components/products/admin/TableToolbar";
 import { ProductsTable } from "@/components/products/admin/ProductsTable";
+import { StatCards } from "@/components/products/admin/StatCards";
+import { StockAdjustmentDialog } from "@/components/products/admin/StockAdjustmentDialog";
 import { TablePagination } from "@/components/products/admin/TablePagination";
 import { TableSkeleton } from "@/components/products/admin/TableSkeleton";
-import { ProductsError } from "@/components/products/admin/ProductsError";
-import { StockAdjustmentDialog } from "@/components/products/admin/StockAdjustmentDialog";
+import { TableToolbar } from "@/components/products/admin/TableToolbar";
+import ErrorState from "@/components/shared/ErrorState";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAdminProducts } from "@/hooks/use-admin-products";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useEffect, useState } from "react";
-import { ProductsParams, Product } from "@/types/product";
 import { useSearchProducts } from "@/hooks/use-product-queries";
+import { Product, ProductsParams } from "@/types/product";
+import { ArrowLeft, Plus } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export default function AdminProductsPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -123,10 +124,27 @@ export default function AdminProductsPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <div className="max-w-[1400px] mx-auto space-y-6">
-        <ProductsHeader productCount={pagination?.total} />
+        <PageHeader
+          pageTitle="Products"
+          pageDescription={`Manage your inventory • ${pagination?.total.toLocaleString()} items`}
+          headerButtons={[
+            {
+              title: "Back to Dashboard",
+              href: "/admin",
+              icon: <ArrowLeft className="h-3 w-3 " />,
+            },
+          ]}
+          pageButtons={[
+            {
+              title: "Create Product",
+              href: "/admin/products/create",
+              icon: <Plus className="h-3 w-3 " />,
+            },
+          ]}
+        />
         <StatCards />
 
-        <Card className="border-gray-200 rounded-none overflow-hidden shadow-sm">
+        <Card className="border-gray-200 rounded-none overflow-hidden shadow-sm p-0 gap-0">
           <TableToolbar
             searchQuery={searchQuery}
             onSearchChange={handleSearchChange}
@@ -145,10 +163,11 @@ export default function AdminProductsPage() {
             {isLoading && !products.length ? (
               <TableSkeleton />
             ) : error ? (
-              <ProductsError
+              <ErrorState
                 error={error}
                 onRetry={refetch}
-                onClearFilters={handleClearFilters}
+                onResetFilters={handleClearFilters}
+                title="Failed to load products"
               />
             ) : (
               <ProductsTable

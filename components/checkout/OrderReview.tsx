@@ -1,6 +1,5 @@
 // components/checkout/OrderReview.tsx
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -9,16 +8,15 @@ import { CartItem } from "@/types/cart";
 import { ShippingAddress } from "@/types/order";
 import {
   Loader2,
-  Package,
-  MapPin,
-  CreditCard,
-  MessageSquare,
   ShoppingBag,
   ArrowLeft,
+  MapPin,
+  CreditCard,
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { getImageSrc } from "@/lib/utils";
 
 interface OrderReviewProps {
   cart: CartItem[];
@@ -78,165 +76,166 @@ export function OrderReview({
     });
   };
 
+  const formatPaymentMethod = (method: string) => {
+    return method.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  };
+
   return (
     <div className="space-y-6">
-      <Card className="shadow-lg border-0">
-        <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 border-b">
-          <div className="flex items-center gap-2">
-            <Package className="h-6 w-6 text-primary" />
-            <CardTitle className="text-2xl">Order Items</CardTitle>
-          </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            {cart.length} item{cart.length !== 1 ? "s" : ""} in your order
-          </p>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="space-y-4">
-            {cart.map((item, index) => (
-              <div key={index}>
-                <div className="flex gap-4">
-                  <div className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden border">
-                    <Image
-                      src={item.image}
-                      alt={item.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-base">{item.name}</h4>
-                    {item.variation && (
-                      <div className="flex gap-2 mt-1">
-                        {item.variation.size && (
-                          <span className="text-sm bg-gray-100 px-2 py-0.5 rounded">
-                            Size: {item.variation.size}
-                          </span>
-                        )}
-                        {item.variation.color && (
-                          <span className="text-sm bg-gray-100 px-2 py-0.5 rounded">
-                            Color: {item.variation.color}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Quantity: {item.quantity}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-lg">
-                      $
-                      {(
-                        (item.currentPrice || item.price) * item.quantity
-                      ).toFixed(2)}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      ${(item.currentPrice || item.price).toFixed(2)} each
-                    </p>
-                  </div>
+      {/* Order Items */}
+      <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200">
+        <h3 className="text-lg font-bold text-slate-900 mb-5">
+          Order Items ({cart.length})
+        </h3>
+        <div className="space-y-4">
+          {cart.map((item, index) => (
+            <div key={index}>
+              <div className="flex gap-4">
+                <div className="relative w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                  <Image
+                    src={getImageSrc(item.image)}
+                    alt={item.name}
+                    fill
+                    className="object-contain p-2"
+                    sizes="80px"
+                  />
                 </div>
-                {index < cart.length - 1 && <Separator className="mt-4" />}
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold text-slate-900 text-sm line-clamp-1">
+                    {item.name}
+                  </h4>
+                  {item.variation && (
+                    <div className="flex gap-3 mt-1 text-xs text-slate-500">
+                      {item.variation.size && (
+                        <span>
+                          Size:{" "}
+                          <span className="font-medium text-slate-700">
+                            {item.variation.size}
+                          </span>
+                        </span>
+                      )}
+                      {item.variation.color && (
+                        <span>
+                          Color:{" "}
+                          <span className="font-medium text-slate-700">
+                            {item.variation.color}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <p className="text-xs text-slate-500 mt-1">
+                    Qty: {item.quantity}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-slate-900">
+                    $
+                    {(
+                      (item.currentPrice || item.price) * item.quantity
+                    ).toFixed(2)}
+                  </p>
+                </div>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              {index < cart.length - 1 && <Separator className="mt-4" />}
+            </div>
+          ))}
+        </div>
+      </div>
 
-      <Card className="shadow-lg border-0">
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 border-b">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-6 w-6 text-blue-600" />
-            <CardTitle className="text-xl">Shipping Address</CardTitle>
+      {/* Shipping & Payment Info */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Shipping Address */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+          <div className="flex items-start gap-3">
+            <MapPin className="h-5 w-5 text-slate-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-sm font-bold text-slate-900 mb-2">
+                Shipping Address
+              </h4>
+              <div className="space-y-0.5 text-sm text-slate-600">
+                <p>{shippingAddress.address}</p>
+                <p>
+                  {shippingAddress.city}, {shippingAddress.postalCode}
+                </p>
+                <p>{shippingAddress.country}</p>
+                {shippingAddress.phoneNumber && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    {shippingAddress.phoneNumber}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="space-y-1 text-base">
-            <p className="font-medium">{shippingAddress.address}</p>
-            <p>
-              {shippingAddress.city}, {shippingAddress.postalCode}
-            </p>
-            <p>{shippingAddress.country}</p>
-            {shippingAddress.phoneNumber && (
-              <p className="text-muted-foreground mt-2">
-                {shippingAddress.phoneNumber}
+        </div>
+
+        {/* Payment Method */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+          <div className="flex items-start gap-3">
+            <CreditCard className="h-5 w-5 text-slate-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-sm font-bold text-slate-900 mb-2">
+                Payment Method
+              </h4>
+              <p className="text-sm text-slate-600">
+                {formatPaymentMethod(paymentMethod)}
               </p>
-            )}
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card className="shadow-lg border-0">
-        <CardHeader className="bg-gradient-to-r from-green-50 to-green-100 border-b">
-          <div className="flex items-center gap-2">
-            <CreditCard className="h-6 w-6 text-green-600" />
-            <CardTitle className="text-xl">Payment Method</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <p className="text-base font-medium capitalize">
-            {paymentMethod
-              .replace("_", " ")
-              .replace(/\b\w/g, (l) => l.toUpperCase())}
-          </p>
-        </CardContent>
-      </Card>
+      {/* Order Notes */}
+      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+        <Label
+          htmlFor="notes"
+          className="text-sm font-bold text-slate-900 block mb-2"
+        >
+          Order Notes{" "}
+          <span className="text-slate-400 font-normal">(Optional)</span>
+        </Label>
+        <Textarea
+          id="notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Special delivery instructions..."
+          maxLength={500}
+          rows={3}
+          className="border-slate-200 rounded-xl resize-none"
+        />
+        <p className="text-xs text-slate-400 mt-2">
+          {notes.length}/500 characters
+        </p>
+      </div>
 
-      <Card className="shadow-lg border-0">
-        <CardHeader className="bg-gradient-to-r from-purple-50 to-purple-100 border-b">
-          <div className="flex items-center gap-2">
-            <MessageSquare className="h-6 w-6 text-purple-600" />
-            <CardTitle className="text-xl">Order Notes</CardTitle>
-          </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            Optional: Add special delivery instructions
-          </p>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <Label htmlFor="notes" className="text-base font-semibold">
-            Special Instructions
-          </Label>
-          <Textarea
-            id="notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="e.g., Please ring the doorbell, leave at door, etc."
-            maxLength={500}
-            rows={4}
-            className="mt-2"
-          />
-          <p className="text-sm text-muted-foreground mt-2">
-            {notes.length}/500 characters
-          </p>
-        </CardContent>
-      </Card>
-
+      {/* Action Buttons */}
       <div className="flex gap-3 pt-4">
         <Button
           type="button"
           variant="outline"
           onClick={onBack}
-          className="flex-1"
+          className="flex-1 h-12 rounded-xl border-2 border-slate-200 hover:bg-slate-50"
           disabled={createOrder.isPending}
           size="lg"
         >
-          <ArrowLeft className="mr-2 h-5 w-5" />
-          Back to Payment
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
         </Button>
         <Button
           onClick={handlePlaceOrder}
-          className="flex-1 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+          className="flex-1 h-12 rounded-xl bg-slate-900 hover:bg-slate-800 shadow-sm hover:shadow-md transition-all"
           disabled={createOrder.isPending}
           size="lg"
         >
           {createOrder.isPending ? (
             <>
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Processing Order...
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Processing...
             </>
           ) : (
             <>
-              <ShoppingBag className="mr-2 h-5 w-5" />
-              Place Order - ${totalPrice.toFixed(2)}
+              <ShoppingBag className="mr-2 h-4 w-4" />
+              Place Order · ${totalPrice.toFixed(2)}
             </>
           )}
         </Button>

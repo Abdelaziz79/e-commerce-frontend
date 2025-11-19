@@ -1,5 +1,5 @@
 // components/category/hooks/useCategoryModal.ts
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   useCreateCategory,
   useUpdateCategory,
@@ -10,6 +10,7 @@ import type {
   CreateCategoryData,
   UpdateCategoryData,
 } from "@/types/category";
+import { toast } from "sonner";
 
 const initialFormData: CreateCategoryData = {
   name: "",
@@ -28,74 +29,89 @@ export function useCategoryModal() {
   const updateCategory = useUpdateCategory();
   const deleteCategory = useDeleteCategory();
 
-  const handleOpenModal = (category: Category | null) => {
+  const handleOpenModal = useCallback((category: Category | null) => {
     if (category) {
       setEditingCategory(category);
       setFormData({
-        name: category.name,
-        description: category.description || "",
-        image: category.image || "",
-        parentCategory: category.parentCategory || null,
-        isActive: category.isActive,
+        name: category?.name,
+        description: category?.description || "",
+        image: category?.image || "",
+        parentCategory: category?.parentCategory || null,
+        isActive: category?.isActive,
       });
     } else {
       setEditingCategory(null);
       setFormData(initialFormData);
     }
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
-    setEditingCategory(null);
-    setFormData(initialFormData);
-  };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    document.body.style.pointerEvents = "";
+    document.body.style.removeProperty("pointer-events");
 
-    try {
-      // Create a new object that will only contain the valid data to be sent.
-      // This approach is fully type-safe and avoids using 'any'.
-      const dataToSend: UpdateCategoryData = {};
+    setTimeout(() => {
+      setEditingCategory(null);
+      setFormData(initialFormData);
+    }, 200);
+  }, []);
 
-      // Iterate over the keys of the form data in a type-safe way.
-      for (const key in formData) {
-        const typedKey = key as keyof CreateCategoryData;
-        const value = formData[typedKey];
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
 
-        // Add the value to the payload if it's not empty, null, or undefined.
-        // We make an exception for the 'isActive' boolean, which should always be included.
-        if (value !== "" && value !== undefined && value !== null) {
-          // TypeScript understands this assignment is valid because `dataToSend` is a
-          // partial and the key/value pairs are derived directly from CreateCategoryData.
-          (dataToSend[typedKey] as typeof value) = value;
+      try {
+        const dataToSend: UpdateCategoryData = {};
+
+        for (const key in formData) {
+          const typedKey = key as keyof CreateCategoryData;
+          const value = formData[typedKey];
+
+          if (value !== "" && value !== undefined && value !== null) {
+            (dataToSend[typedKey] as typeof value) = value;
+          }
         }
-      }
 
-      if (editingCategory) {
-        await updateCategory.mutateAsync({
-          categoryId: editingCategory._id,
-          data: dataToSend,
-        });
-      } else {
-        await createCategory.mutateAsync(dataToSend as CreateCategoryData);
-      }
-      handleCloseModal();
-    } catch (error) {
-      console.error("Failed to save category:", error);
-    }
-  };
+        if (editingCategory) {
+          await updateCategory.mutateAsync({
+            categoryId: editingCategory._id,
+            data: dataToSend,
+          });
+          toast.success("Category updated successfully!");
+        } else {
+          await createCategory.mutateAsync(dataToSend as CreateCategoryData);
+          toast.success("Category created successfully!");
+        }
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm("Are you sure you want to delete this category?")) {
+        handleCloseModal();
+      } catch (error) {
+        console.error("Failed to save category:", error);
+        toast.error("Failed to save category?. Please try again.");
+      }
+    },
+    [
+      formData,
+      editingCategory,
+      createCategory,
+      updateCategory,
+      handleCloseModal,
+    ]
+  );
+
+  const handleDelete = useCallback(
+    async (id: string) => {
       try {
         await deleteCategory.mutateAsync(id);
+        toast.success("Category deleted successfully!");
       } catch (error) {
         console.error("Failed to delete category:", error);
+        toast.error("Failed to delete category?. Please try again.");
       }
-    }
-  };
+    },
+    [deleteCategory]
+  );
 
   const isSubmitting =
     createCategory.isPending ||

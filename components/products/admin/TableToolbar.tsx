@@ -1,13 +1,13 @@
 "use client";
 
-import { Input } from "@/components/ui/input";
-import { AlertCircle, Loader2, Search, X } from "lucide-react";
-import { ProductsParams } from "@/types/product";
-import { BulkActions } from "./BulkActions";
 import { Button } from "@/components/ui/button";
-import { useSearchableInfiniteAdminCategories } from "@/hooks/use-category-hooks";
+import { Input } from "@/components/ui/input";
 import { useSearchableInfiniteAdminBrands } from "@/hooks/use-brand-hooks";
-import { SearchableSelect } from "../create/SearchableSelect";
+import { useSearchableInfiniteAdminCategories } from "@/hooks/use-category-hooks";
+import { ProductsParams } from "@/types/product";
+import { AlertCircle, Loader2, Search, X } from "lucide-react";
+import { SearchableSelect } from "../../shared/SearchableSelect";
+import { BulkActions } from "./BulkActions";
 
 interface TableToolbarProps {
   searchQuery: string;

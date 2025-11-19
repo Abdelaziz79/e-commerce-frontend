@@ -13,12 +13,15 @@ import { PricingForm } from "@/components/products/create/PricingForm";
 import { ProductSettingsForm } from "@/components/products/create/ProductSettingsForm";
 import { RelatedProductsForm } from "@/components/products/create/RelatedProductsForm";
 import { VariationsForm } from "@/components/products/create/VariationsForm";
-import { FormActions } from "@/components/products/edit/FormActions";
-import { ProductHeader } from "@/components/products/edit/ProductHeader";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { useBrands } from "@/hooks/use-brand-hooks";
-import { useCategories } from "@/hooks/use-category-hooks";
-import { useUpdateProduct } from "@/hooks/use-product-mutations";
+import { FormActions } from "@/components/shared/FormAction";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { Button } from "@/components/ui/button";
+
+import {
+  useDeleteProduct,
+  useUpdateProduct,
+} from "@/hooks/use-product-mutations";
 import { useProduct } from "@/hooks/use-product-queries";
 import { Brand } from "@/types/brand";
 import { Category } from "@/types/category";
@@ -28,9 +31,18 @@ import {
   ProductDimensions,
   ProductVariation,
 } from "@/types/product";
-import { AlertCircle, Loader2 } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Eye,
+  Loader2,
+  Save,
+  Trash2,
+} from "lucide-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 function EditProductContent() {
   const params = useParams();
@@ -44,20 +56,25 @@ function EditProductContent() {
   } = useProduct(productId);
 
   const product_id = productData?.data._id as string;
+  const { mutate: deleteProduct, isPending } = useDeleteProduct();
 
+  const handleDelete = () => {
+    toast("Are you sure?", {
+      description: `This will permanently delete "${productData?.data.name}". This action cannot be undone.`,
+      action: {
+        label: "Delete",
+        onClick: () => deleteProduct(product_id),
+      },
+      cancel: {
+        label: "Cancel",
+        onClick: () => toast.dismiss(),
+      },
+      classNames: {
+        actionButton: "bg-red-600 text-white",
+      },
+    });
+  };
   const updateProductMutation = useUpdateProduct();
-
-  // Data Fetching for Modals
-  const {
-    data: categoriesData,
-    isLoading: isLoadingCategories,
-    error: categoriesError,
-  } = useCategories();
-  const {
-    data: brandsData,
-    isLoading: isLoadingBrands,
-    error: brandsError,
-  } = useBrands();
 
   // Modals
   const brandModal = useBrandModal();
@@ -237,7 +254,7 @@ function EditProductContent() {
     handleInputChange("hasVariations", (formData.variations?.length || 0) > 0);
   }, [formData.variations]);
 
-  if (isLoadingProduct || isLoadingCategories || isLoadingBrands) {
+  if (isLoadingProduct || isPending) {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-50">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
@@ -259,22 +276,31 @@ function EditProductContent() {
     );
   }
 
-  if (categoriesError || brandsError) {
-    return (
-      <div className="text-center py-10">
-        <p className="text-red-600">
-          Error fetching modal data:{" "}
-          {categoriesError?.message || brandsError?.message}
-        </p>
-      </div>
-    );
-  }
-
   return (
     <>
       <div className="min-h-screen bg-gray-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <ProductHeader productName={formData.name} productId={productId} />
+          <PageHeader
+            pageTitle="Edit Product"
+            pageDescription={`Update the information below to modify ${productData?.data?.name}. Fields marked with * are required.`}
+            headerButtons={[
+              {
+                title: "Back to Products",
+                href: "/admin/products",
+                icon: <ArrowLeft className="h-3 w-3" />,
+              },
+              {
+                title: "View Product",
+                href: `/products/${productId}`,
+                icon: <Eye className="h-3 w-3" />,
+              },
+              {
+                title: "Delete Product",
+                onClick: handleDelete,
+                icon: <Trash2 className="h-3 w-3" />,
+              },
+            ]}
+          />
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
               {/* Left Column */}
@@ -335,10 +361,26 @@ function EditProductContent() {
               </div>
             </div>
 
+            {/* <FormActions isPending={} /> */}
             <FormActions
               isPending={updateProductMutation.isPending}
-              productId={productId}
-            />
+              submitText="Update Product"
+              pendingText="Updating..."
+              submitIcon={<Save className="mr-2 h-4 w-4" />}
+              cancelHref="/admin/products"
+              justify="between"
+            >
+              <Button
+                asChild
+                type="button"
+                variant="outline"
+                size="default"
+                className="min-w-[140px] text-sm h-9 border-gray-200 rounded-none"
+                disabled={updateProductMutation.isPending}
+              >
+                <Link href="/admin/products">Back to List</Link>
+              </Button>
+            </FormActions>
           </form>
         </div>
       </div>
@@ -360,7 +402,6 @@ function EditProductContent() {
         formData={categoryModal.formData}
         setFormData={categoryModal.setFormData}
         onSubmit={categoryModal.handleSubmit}
-        categories={categoriesData?.data.categories || []}
         isSubmitting={categoryModal.isSubmitting}
       />
     </>

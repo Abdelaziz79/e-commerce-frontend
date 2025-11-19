@@ -99,7 +99,7 @@ export default function ProductPage() {
     selectedVariation?.countInStock ?? product.countInStock;
   const category = product.category as Category;
   const brandName =
-    typeof product.brand === "object" ? product.brand.name : "Unbranded";
+    typeof product.brand === "object" ? product.brand?.name : "Unbranded";
 
   const handleAddToCart = () => {
     if (product.hasVariations && !selectedVariationId) {

@@ -58,23 +58,25 @@ export function ProductCard({
   );
 
   const brandName = useMemo(
-    () => (typeof product.brand === "object" ? product.brand.name : "Brand"),
+    () => (typeof product.brand === "object" ? product.brand?.name : "Brand"),
     [product.brand]
   );
 
   const brandSlug = useMemo(
-    () => (typeof product.brand === "object" ? product.brand.slug : ""),
+    () => (typeof product.brand === "object" ? product.brand?.slug : ""),
     [product.brand]
   );
 
   const categoryName = useMemo(
     () =>
-      typeof product.category === "object" ? product.category.name : "Category",
+      typeof product.category === "object"
+        ? product.category?.name
+        : "Category",
     [product.category]
   );
 
   const categorySlug = useMemo(
-    () => (typeof product.category === "object" ? product.category.slug : ""),
+    () => (typeof product.category === "object" ? product.category?.slug : ""),
     [product.category]
   );
 

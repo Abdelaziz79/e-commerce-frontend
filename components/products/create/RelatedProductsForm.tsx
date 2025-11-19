@@ -6,7 +6,7 @@ import { useProduct } from "@/hooks/use-product-queries";
 import { Product } from "@/types/product";
 import { Link2, ShoppingBag, X } from "lucide-react";
 import Image from "next/image";
-import { MultiProductSelector } from "./MultiProductSelector";
+import { MultiProductSelector } from "../../shared/MultiProductSelector";
 
 interface RelatedProductsFormProps {
   selectedProductIds: string[];

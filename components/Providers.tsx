@@ -4,7 +4,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { AuthProvider } from "@/hooks/auth-context";
-import { ReactNode, useState } from "react";
+import { ReactNode, Suspense, useState } from "react";
+import { LoadingDisplay } from "./cart/LoadingDisplay";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -25,7 +26,9 @@ export function Providers({ children }: ProvidersProps) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>{children}</AuthProvider>
+      <Suspense fallback={<LoadingDisplay />}>
+        <AuthProvider>{children}</AuthProvider>
+      </Suspense>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );

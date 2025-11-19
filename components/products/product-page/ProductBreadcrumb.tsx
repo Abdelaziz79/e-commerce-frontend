@@ -40,10 +40,10 @@ export function ProductBreadcrumb({
             <ChevronRight className="w-4 h-4 text-gray-400" />
             <li>
               <Link
-                href={`/categories/${category.slug}`}
+                href={`/categories/${category?.slug}`}
                 className="text-gray-600 hover:text-gray-900 transition-colors"
               >
-                {category.name}
+                {category?.name}
               </Link>
             </li>
           </>

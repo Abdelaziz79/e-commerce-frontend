@@ -26,7 +26,7 @@ export function ProductRow({
   onAdjustStock,
 }: ProductRowProps) {
   const brandName = useMemo(
-    () => (typeof product.brand === "object" ? product.brand.name : "N/A"),
+    () => (typeof product.brand === "object" ? product.brand?.name : "N/A"),
     [product.brand]
   );
   const finalPrice =

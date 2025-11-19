@@ -20,18 +20,17 @@ export interface Review {
   images?: string[];
   isVerifiedPurchase: boolean;
   helpfulVotes: number;
-  helpfulVotedBy?: string[]; // Array of user IDs who voted
+  helpfulVotedBy?: string[];
   createdAt: string;
   updatedAt: string;
   id: string;
 }
 
-// --- API PARAMS & PAYLOADS ---
 export interface ReviewsParams {
   page?: number;
   limit?: number;
   sort?: string;
-  product?: string; // Filter reviews by product ID
+  product?: string;
   [key: string]: string | number | boolean | undefined;
 }
 
@@ -43,11 +42,13 @@ export interface CreateReviewData {
   images?: File[];
 }
 
+// FIXED: Added existingImages field
 export interface UpdateReviewData {
   rating?: number;
   comment?: string;
   title?: string;
-  images?: File[];
+  images?: File[]; // New images to upload
+  existingImages?: string[]; // Existing images to keep
 }
 
 export interface VoteReviewResponse {
@@ -81,9 +82,15 @@ export interface MyReviewsResponse {
   data: {
     reviews: Review[];
   };
+  stats?: {
+    totalReviews: number;
+    avgRating: number;
+    totalHelpfulVotes: number;
+    verifiedCount: number;
+    ratingBreakdown: Record<number, number>;
+  };
 }
 
-// --- API RESPONSE TYPES ---
 export interface PaginatedReviewsResponse {
   status: string;
   results: number;

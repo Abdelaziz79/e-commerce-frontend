@@ -5,10 +5,10 @@ import { cn } from "@/lib/utils";
 import { ViewModeStorage } from "@/lib/viewModeStorage";
 import { Product } from "@/types/product";
 import { useEffect, useState } from "react";
+import ErrorState from "../shared/ErrorState";
 import EmptyProducts from "./EmptyProducts";
 import LoadingProducts from "./LoadingProducts";
 import { ProductCard } from "./ProductCard";
-import ProductsError from "./ProductsError";
 import { SortDropdown } from "./SortDropdown";
 import { ViewMode, ViewModeToggle } from "./ViewModeToggle";
 
@@ -132,10 +132,11 @@ export function ProductGrid({
 
       {/* Error State */}
       {error && !isLoading && (
-        <ProductsError
+        <ErrorState
+          title="Oops! Something went wrong"
+          error={error}
           onRetry={onRetry}
           onResetFilters={onResetFilters}
-          handleResetFilters={handleResetFilters}
         />
       )}
 

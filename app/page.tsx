@@ -1,557 +1,362 @@
+// app/page.tsx
+
 "use client";
 
-import { Badge } from "@/components/ui/badge";
+import { ProductCard } from "@/components/products/ProductCard";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useBrands } from "@/hooks/use-brand-hooks";
+import { useCategories } from "@/hooks/use-category-hooks";
+import { useFeaturedProducts, useProducts } from "@/hooks/use-product-queries";
+import { getImageSrc } from "@/lib/utils";
+import { Category } from "@/types/category";
+import { Product } from "@/types/product";
 import {
   ArrowRight,
-  ChevronRight,
-  Clock,
-  CreditCard,
-  HardDrive,
-  Heart,
-  Play,
-  Shield,
-  ShoppingCart,
-  Smartphone,
-  Sparkles,
-  Star,
-  Volume2,
+  ImageIcon,
+  ShieldCheck,
+  Truck,
   Zap,
+  Smartphone,
 } from "lucide-react";
-import { useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
 
-// Product interface
-interface Product {
-  id: number;
-  name: string;
-  description: string;
-  price: number;
-  oldPrice: number | null;
-  rating: number;
-  discount: number;
-  image: string;
-  category: string;
-  brand: string;
+// --- Helper Components ---
+
+// 1. Section Header (Minimalist)
+function SectionHeader({ title, href }: { title: string; href?: string }) {
+  return (
+    <div className="flex items-center justify-between mb-10">
+      <h2 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
+        {title}
+      </h2>
+      {href && (
+        <Button
+          variant="link"
+          asChild
+          className="text-gray-500 hover:text-gray-900 p-0"
+        >
+          <Link href={href} className="flex items-center gap-1">
+            See all <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Button>
+      )}
+    </div>
+  );
 }
 
-export default function Home() {
-  const [email, setEmail] = useState("");
-  const [hoveredProduct, setHoveredProduct] = useState<number | null>(null);
+// 2. Loading Skeleton
+function ProductGridSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-gray-200 border border-gray-200">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="bg-white p-6">
+          <Skeleton className="aspect-square w-full mb-4" />
+          <Skeleton className="h-4 w-2/3 mb-2" />
+          <Skeleton className="h-4 w-1/3" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// 3. Category Card (Pill Shape for Modern Look)
+function CategoryCard({ category }: { category: Category }) {
+  const imageUrl = category.image ? getImageSrc(category.image) : "";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
-        {/* Animated Background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-white to-cyan-50">
-          <div className="absolute top-20 left-20 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse"></div>
-          <div className="absolute top-40 right-20 w-72 h-72 bg-yellow-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse animation-delay-2000"></div>
-          <div className="absolute -bottom-8 left-40 w-72 h-72 bg-pink-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse animation-delay-4000"></div>
-        </div>
+    <Link
+      href={`/categories/${category.slug}`}
+      className="group flex flex-col items-center gap-3"
+    >
+      <div className="relative h-24 w-24 sm:h-32 sm:w-32 rounded-full bg-gray-50 border border-gray-100 group-hover:border-gray-300 group-hover:shadow-md transition-all duration-300 overflow-hidden flex items-center justify-center">
+        {imageUrl ? (
+          <Image
+            src={imageUrl}
+            alt={category.name}
+            fill
+            sizes="(max-width: 768px) 96px, 128px" // Added sizes prop here
+            className="object-cover group-hover:scale-110 transition-transform duration-500"
+          />
+        ) : (
+          <ImageIcon className="h-8 w-8 text-gray-300" />
+        )}
+      </div>
+      <span className="font-medium text-sm text-gray-700 group-hover:text-gray-900 transition-colors">
+        {category.name}
+      </span>
+    </Link>
+  );
+}
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div className="space-y-8 animate-fade-in">
-              <div className="space-y-6">
-                <Badge
-                  variant="outline"
-                  className="bg-black text-white border-black hover:bg-gray-800 transition-colors"
-                >
-                  <Sparkles className="w-3 h-3 mr-2" />
-                  New Collection 2025
-                </Badge>
-                <h1 className="text-6xl lg:text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 leading-tight">
-                  Future Tech
-                  <span className="block text-5xl lg:text-6xl font-light text-gray-600">
-                    Today
-                  </span>
-                </h1>
-                <p className="text-xl text-gray-600 max-w-lg leading-relaxed">
-                  Experience tomorrow&apos;s technology today with our premium
-                  collection of cutting-edge electronics designed for the modern
-                  lifestyle.
-                </p>
-              </div>
+export default function HomePage() {
+  // --- Data Fetching ---
+  const { data: featuredData, isLoading: isFeaturedLoading } =
+    useFeaturedProducts(4);
+  const { data: newArrivalsData, isLoading: isNewLoading } = useProducts({
+    sort: "-createdAt",
+    limit: 4,
+  });
+  const { data: brandsData } = useBrands({ limit: 8 });
+  const { data: categoriesData, isLoading: isCategoriesLoading } =
+    useCategories({ limit: 6 });
 
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button
-                  size="lg"
-                  className="bg-gradient-to-r from-black to-gray-800 text-white hover:from-gray-800 hover:to-black px-8 py-6 rounded-full text-lg font-medium transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
-                >
-                  <Play className="w-5 h-5 mr-2" />
-                  Explore Collection
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="px-8 py-6 rounded-full border-2 border-gray-300 hover:border-black hover:bg-black hover:text-white transition-all duration-300 text-lg font-medium"
-                >
-                  Watch Demo
-                </Button>
-              </div>
-
-              {/* Trust Indicators */}
-              <div className="flex items-center gap-6 pt-4">
-                <div className="flex items-center gap-2">
-                  <div className="flex -space-x-2">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div
-                        key={i}
-                        className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 border-2 border-white"
-                      ></div>
-                    ))}
-                  </div>
-                  <span className="text-sm text-gray-600">
-                    50K+ Happy Customers
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <Star
-                      key={i}
-                      className="w-4 h-4 text-yellow-400 fill-current"
-                    />
-                  ))}
-                  <span className="text-sm text-gray-600 ml-1">
-                    4.9/5 Rating
-                  </span>
-                </div>
-              </div>
+  return (
+    <div className="flex flex-col min-h-screen bg-white">
+      {/* 1. HERO SECTION (Minimal & Clean) */}
+      <section className="relative pt-16 pb-24 sm:pt-24 sm:pb-32 overflow-hidden">
+        <div className="container mx-auto px-4 sm:px-6 relative z-10">
+          <div className="max-w-3xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-gray-600 mb-8">
+              <span className="flex h-2 w-2 rounded-full bg-blue-600 animate-pulse"></span>
+              <span className="text-xs font-semibold uppercase tracking-wider">
+                New Season Arrivals
+              </span>
             </div>
-
-            <div className="relative">
-              <div className="relative aspect-square">
-                {/* Main Product Showcase */}
-                <div className="absolute inset-0 bg-gradient-to-br from-gray-100 via-white to-blue-50 rounded-3xl shadow-2xl flex items-center justify-center transform rotate-3 hover:rotate-0 transition-transform duration-700">
-                  <div className="text-9xl animate-bounce">🎧</div>
-                </div>
-
-                {/* Floating Elements */}
-                <div className="absolute -top-4 -right-4 bg-white rounded-full p-4 shadow-lg animate-float">
-                  <Heart className="w-6 h-6 text-red-500" />
-                </div>
-                <div className="absolute -bottom-4 -left-4 bg-white rounded-full p-4 shadow-lg animate-float animation-delay-2000">
-                  <ShoppingCart className="w-6 h-6 text-green-500" />
-                </div>
-                <div className="absolute top-1/2 -left-8 bg-white rounded-full p-3 shadow-lg animate-float animation-delay-4000">
-                  <Sparkles className="w-5 h-5 text-purple-500" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Enhanced Stats */}
-      <section className="py-20 bg-white/50 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center group">
-                <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                  <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-2">
-                    {stat.value}
-                  </div>
-                  <div className="text-sm text-gray-500 uppercase tracking-wider font-medium">
-                    {stat.label}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Enhanced Categories */}
-      <section className="py-24 bg-gradient-to-b from-white to-gray-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4">
-              <Sparkles className="w-3 h-3 mr-2" />
-              Categories
-            </Badge>
-            <h2 className="text-5xl font-bold text-gray-900 mb-4">
-              Shop by Category
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Discover our carefully curated collection of premium electronics
+            <h1 className="text-5xl sm:text-7xl font-bold text-gray-900 tracking-tight mb-6 leading-[1.1]">
+              The Future of <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-500">
+                Tech is Here.
+              </span>
+            </h1>
+            <p className="text-lg sm:text-xl text-gray-500 mb-10 leading-relaxed max-w-2xl mx-auto">
+              Upgrade your lifestyle with premium electronics. Simple, powerful,
+              and designed for the modern creator.
             </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Button
+                size="lg"
+                className="rounded-full px-8 h-12 bg-gray-900 hover:bg-black text-white text-base w-full sm:w-auto"
+                asChild
+              >
+                <Link href="/products">Shop Collection</Link>
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="rounded-full px-8 h-12 border-gray-300 hover:bg-gray-50 text-gray-700 text-base w-full sm:w-auto"
+                asChild
+              >
+                <Link href="/categories">Explore Categories</Link>
+              </Button>
+            </div>
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-            {categories.map((category) => (
-              <div key={category.id} className="group cursor-pointer">
-                <div className="bg-white border border-gray-200 rounded-2xl p-8 hover:shadow-2xl transition-all duration-500 transform hover:scale-105 hover:bg-gradient-to-br hover:from-white hover:to-blue-50">
-                  <div className="text-center">
-                    <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl flex items-center justify-center group-hover:bg-gradient-to-br group-hover:from-blue-500 group-hover:to-purple-500 transition-all duration-300 transform group-hover:rotate-6">
-                      <div className="text-blue-600 group-hover:text-white transition-colors">
-                        {category.icon}
-                      </div>
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
-                      {category.name}
-                    </h3>
-                    <p className="text-sm text-gray-500 font-medium">
-                      {category.count} items
-                    </p>
-                  </div>
+        {/* Subtle Gradient Background */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full z-0 pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-50/50 rounded-full blur-3xl" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-50/50 rounded-full blur-3xl" />
+        </div>
+      </section>
+
+      {/* 2. CATEGORIES (Visual Navigation) */}
+      <section className="py-16 sm:py-20 border-b border-gray-100">
+        <div className="container mx-auto px-4">
+          {isCategoriesLoading ? (
+            <div className="flex justify-center gap-8 overflow-hidden">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-24 w-24 rounded-full" />
+              ))}
+            </div>
+          ) : categoriesData?.data.categories &&
+            categoriesData.data.categories.length > 0 ? (
+            <div className="flex flex-wrap justify-center gap-8 sm:gap-12">
+              {categoriesData.data.categories.map((category: Category) => (
+                <CategoryCard key={category._id} category={category} />
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      {/* 3. FEATURED PRODUCTS (Clean Grid) */}
+      <section className="py-20 sm:py-28">
+        <div className="container mx-auto px-4">
+          <SectionHeader
+            title="Featured Collection"
+            href="/products?featured=true"
+          />
+
+          {isFeaturedLoading ? (
+            <ProductGridSkeleton />
+          ) : featuredData?.data && featuredData.data.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-y-12 ">
+              {featuredData.data.map((product: Product, index: number) => (
+                <div key={product._id} className="h-full">
+                  <ProductCard
+                    product={product}
+                    view="grid"
+                    position={
+                      index % 4 === 0
+                        ? "left"
+                        : index % 4 === 3
+                        ? "right"
+                        : "middle"
+                    }
+                  />
                 </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-20 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+              <p className="text-gray-500">No featured products available.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* 4. PROMO BANNER (Modern Split) */}
+      <section className="py-8">
+        <div className="container mx-auto px-4">
+          <div className="bg-gray-900 rounded-3xl overflow-hidden text-white">
+            <div className="grid md:grid-cols-2 items-center">
+              <div className="p-10 sm:p-16">
+                <div className="inline-block px-3 py-1 bg-white/10 rounded-full text-sm font-medium mb-6">
+                  Limited Time Offer
+                </div>
+                <h2 className="text-3xl sm:text-5xl font-bold mb-6 tracking-tight">
+                  Level Up Your <br /> Workstation
+                </h2>
+                <p className="text-gray-400 text-lg mb-8 max-w-md">
+                  Save up to 40% on premium accessories, monitors, and keyboards
+                  this week only.
+                </p>
+                <Button
+                  size="lg"
+                  className="bg-white text-gray-900 hover:bg-gray-100 rounded-full px-8 font-semibold"
+                  asChild
+                >
+                  <Link href="/products?onSale=true">Get Access</Link>
+                </Button>
               </div>
-            ))}
+              <div className="h-64 md:h-full min-h-[300px] relative bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center overflow-hidden">
+                {/* Abstract shape */}
+                <div className="absolute inset-0 opacity-30">
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-500 rounded-full blur-[100px]" />
+                </div>
+                <Smartphone className="w-32 h-32 text-gray-700 relative z-10 opacity-50" />
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Enhanced Featured Products */}
-      <section className="py-24 bg-gradient-to-br from-gray-50 to-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center mb-16">
-            <div>
-              <Badge variant="outline" className="mb-4">
-                <Star className="w-3 h-3 mr-2" />
-                Featured
-              </Badge>
-              <h2 className="text-5xl font-bold text-gray-900 mb-4">
-                Trending Products
-              </h2>
-              <p className="text-xl text-gray-600">
-                Handpicked for innovation and style
+      {/* 5. NEW ARRIVALS */}
+      <section className="py-20 sm:py-28">
+        <div className="container mx-auto px-4">
+          <SectionHeader title="Fresh Drops" href="/products?sort=-createdAt" />
+
+          {isNewLoading ? (
+            <ProductGridSkeleton />
+          ) : newArrivalsData?.data && newArrivalsData.data.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-y-12 ">
+              {newArrivalsData.data.map((product: Product, index: number) => (
+                <div key={product._id} className="h-full">
+                  <ProductCard
+                    product={product}
+                    view="grid"
+                    position={
+                      index % 4 === 0
+                        ? "left"
+                        : index % 4 === 3
+                        ? "right"
+                        : "middle"
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-20 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+              <p className="text-gray-500">No new arrivals yet.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* 6. VALUE PROPOSITION (Simple Icons) */}
+      <section className="py-20 border-t border-gray-100 bg-gray-50/50">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-12 bg-white rounded-2xl border border-gray-100 shadow-sm flex items-center justify-center mb-5 text-gray-900">
+                <Truck className="w-6 h-6" strokeWidth={1.5} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                Free Global Shipping
+              </h3>
+              <p className="text-sm text-gray-500 leading-relaxed max-w-xs">
+                On all orders over $100. Tracked and insured delivery to your
+                doorstep.
               </p>
             </div>
-            <Button
-              variant="outline"
-              className="hidden lg:flex items-center gap-2 rounded-full px-6 py-3 border-2 hover:bg-black hover:text-white transition-all duration-300"
-            >
-              View All
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {featuredProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                isHovered={hoveredProduct === product.id}
-                onHover={() => setHoveredProduct(product.id)}
-                onLeave={() => setHoveredProduct(null)}
-              />
-            ))}
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-12 bg-white rounded-2xl border border-gray-100 shadow-sm flex items-center justify-center mb-5 text-gray-900">
+                <ShieldCheck className="w-6 h-6" strokeWidth={1.5} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                Secure Warranty
+              </h3>
+              <p className="text-sm text-gray-500 leading-relaxed max-w-xs">
+                Every product includes a 2-year comprehensive warranty for peace
+                of mind.
+              </p>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-12 bg-white rounded-2xl border border-gray-100 shadow-sm flex items-center justify-center mb-5 text-gray-900">
+                <Zap className="w-6 h-6" strokeWidth={1.5} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                Fast Returns
+              </h3>
+              <p className="text-sm text-gray-500 leading-relaxed max-w-xs">
+                Change your mind? Return unused items within 30 days for a full
+                refund.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Enhanced Special Offer */}
-      <section className="py-24">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-gradient-to-r from-gray-900 via-black to-gray-900 text-white rounded-3xl overflow-hidden shadow-2xl">
-            <div className="grid lg:grid-cols-2 items-center">
-              <div className="p-12 lg:p-16">
-                <Badge
-                  variant="secondary"
-                  className="mb-6 bg-white/10 text-white border-white/20 backdrop-blur-sm"
+      {/* 7. BRANDS (Grayscale to Color) */}
+      <section className="py-20 border-t border-gray-200">
+        <div className="container mx-auto px-4">
+          <p className="text-center text-sm font-semibold text-gray-400 uppercase tracking-wider mb-10">
+            Trusted by industry leaders
+          </p>
+
+          {!brandsData || brandsData.data.brands.length === 0 ? null : (
+            <div className="flex flex-wrap justify-center items-center gap-x-12 gap-y-8">
+              {brandsData.data.brands.map((brand) => (
+                <Link
+                  key={brand._id}
+                  href={`/brands/${brand.slug}`}
+                  className="group opacity-50 hover:opacity-100 transition-all duration-300"
                 >
-                  <Clock className="w-3 h-3 mr-2" />
-                  Limited Time
-                </Badge>
-                <h3 className="text-5xl font-bold mb-6 leading-tight">
-                  Save 40% on
-                  <span className="block text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400">
-                    Premium Audio
-                  </span>
-                </h3>
-                <p className="text-xl text-gray-300 mb-8 leading-relaxed">
-                  Experience exceptional sound quality with our curated audio
-                  collection featuring the latest technology.
-                </p>
-                <Button className="bg-gradient-to-r from-yellow-400 to-orange-400 text-black hover:from-yellow-500 hover:to-orange-500 px-8 py-6 rounded-full text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg">
-                  Shop Audio
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
-              </div>
-              <div className="p-12 lg:p-16">
-                <div className="aspect-square bg-white/5 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/10">
-                  <div className="text-9xl animate-pulse">🎵</div>
-                </div>
-              </div>
+                  {brand.logo ? (
+                    <div className="relative h-8 w-24 sm:h-10 sm:w-32 grayscale group-hover:grayscale-0 transition-all duration-300">
+                      {/* FIX: Added sizes prop */}
+                      <Image
+                        src={getImageSrc(brand.logo)}
+                        alt={brand.name}
+                        fill
+                        sizes="(max-width: 768px) 100px, 150px"
+                        className="object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <span className="text-lg font-bold text-gray-800">
+                      {brand.name}
+                    </span>
+                  )}
+                </Link>
+              ))}
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Enhanced Benefits */}
-      <section className="py-24 bg-gradient-to-b from-gray-50 to-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4">
-              <Shield className="w-3 h-3 mr-2" />
-              Why Choose Us
-            </Badge>
-            <h2 className="text-5xl font-bold text-gray-900 mb-4">
-              Premium Experience
-            </h2>
-            <p className="text-xl text-gray-600">
-              Commitment to excellence in every detail
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            {benefits.map((benefit, index) => (
-              <div key={index} className="text-center group">
-                <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl flex items-center justify-center group-hover:bg-gradient-to-br group-hover:from-blue-500 group-hover:to-purple-500 transition-all duration-500 transform group-hover:scale-110 group-hover:rotate-3">
-                  <div className="text-blue-600 group-hover:text-white transition-colors">
-                    {benefit.icon}
-                  </div>
-                </div>
-                <h3 className="text-2xl font-semibold text-gray-900 mb-4 group-hover:text-blue-600 transition-colors">
-                  {benefit.title}
-                </h3>
-                <p className="text-gray-600 leading-relaxed text-lg">
-                  {benefit.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Enhanced Newsletter */}
-      <section className="py-24 bg-gradient-to-r from-gray-900 to-black text-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="mb-8">
-            <Badge
-              variant="secondary"
-              className="mb-4 bg-white/10 text-white border-white/20"
-            >
-              <Sparkles className="w-3 h-3 mr-2" />
-              Newsletter
-            </Badge>
-            <h2 className="text-5xl font-bold mb-4">Stay in the Loop</h2>
-            <p className="text-xl text-gray-300">
-              Get exclusive access to new products, special offers, and tech
-              insights
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto items-center">
-            <Input
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="flex-1 px-6 py-4 bg-white/10 border border-white/20 rounded-full focus:outline-none focus:border-white/40 text-white placeholder-gray-300 backdrop-blur-sm"
-            />
-            <Button className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white px-8 py-4 rounded-full font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg">
-              Subscribe
-            </Button>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function ProductCard({
-  product,
-  isHovered,
-  onHover,
-  onLeave,
-}: {
-  product: Product;
-  isHovered: boolean;
-  onHover: () => void;
-  onLeave: () => void;
-}) {
-  return (
-    <div
-      className="group cursor-pointer"
-      onMouseEnter={onHover}
-      onMouseLeave={onLeave}
-    >
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-2xl transition-all duration-500 transform hover:scale-105">
-        <div className="relative aspect-square bg-gradient-to-br from-gray-50 to-blue-50 flex items-center justify-center p-8">
-          <div
-            className={`text-7xl transition-all duration-300 ${
-              isHovered ? "scale-110" : "scale-100"
-            }`}
-          >
-            {getProductEmoji(product.category)}
-          </div>
-          {product.discount > 0 && (
-            <Badge
-              variant="destructive"
-              className="absolute top-3 right-3 bg-gradient-to-r from-red-500 to-pink-500 text-white border-0 shadow-lg"
-            >
-              -{product.discount}%
-            </Badge>
           )}
-          <div className="absolute top-3 left-3 bg-white/80 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <Heart className="w-4 h-4 text-gray-600 hover:text-red-500 transition-colors" />
-          </div>
         </div>
-
-        <div className="p-6">
-          <div className="mb-4">
-            <div className="text-xs text-gray-500 uppercase tracking-wider mb-2 font-semibold">
-              {product.brand}
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
-              {product.name}
-            </h3>
-            <p className="text-sm text-gray-600 line-clamp-2 mb-4 leading-relaxed">
-              {product.description}
-            </p>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-gray-900">
-                ${product.price.toFixed(2)}
-              </span>
-              {product.oldPrice && (
-                <span className="text-sm text-gray-400 line-through">
-                  ${product.oldPrice.toFixed(2)}
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-1">
-              <Star className="w-4 h-4 text-yellow-400 fill-current" />
-              <span className="text-sm text-gray-600 font-medium">
-                {product.rating}
-              </span>
-            </div>
-          </div>
-
-          <Button className="w-full mt-4 bg-gradient-to-r from-black to-gray-800 hover:from-gray-800 hover:to-black text-white rounded-full py-3 transform hover:scale-105 transition-all duration-300 shadow-lg opacity-0 group-hover:opacity-100">
-            Add to Cart
-          </Button>
-        </div>
-      </div>
+      </section>
     </div>
   );
 }
-
-function getProductEmoji(category: string): string {
-  const emojiMap: { [key: string]: string } = {
-    Audio: "🎧",
-    Chargers: "🔌",
-    Storage: "💾",
-    Accessories: "📱",
-  };
-  return emojiMap[category] || "📦";
-}
-
-// Sample data
-const stats = [
-  { value: "50K+", label: "Customers" },
-  { value: "4.9", label: "Rating" },
-  { value: "1000+", label: "Products" },
-  { value: "24/7", label: "Support" },
-];
-
-const categories = [
-  {
-    id: 1,
-    name: "Audio",
-    slug: "audio",
-    count: 150,
-    icon: <Volume2 className="w-6 h-6" />,
-  },
-  {
-    id: 2,
-    name: "Chargers",
-    slug: "chargers",
-    count: 200,
-    icon: <Zap className="w-6 h-6" />,
-  },
-  {
-    id: 3,
-    name: "Storage",
-    slug: "storage",
-    count: 100,
-    icon: <HardDrive className="w-6 h-6" />,
-  },
-  {
-    id: 4,
-    name: "Accessories",
-    slug: "accessories",
-    count: 300,
-    icon: <Smartphone className="w-6 h-6" />,
-  },
-];
-
-const benefits = [
-  {
-    title: "Lightning Fast Delivery",
-    description:
-      "Free express shipping on orders over $50 with same-day delivery available in select cities.",
-    icon: <Clock className="w-8 h-8" />,
-  },
-  {
-    title: "2-Year Warranty",
-    description:
-      "Comprehensive warranty coverage with 24/7 customer support and free repairs.",
-    icon: <Shield className="w-8 h-8" />,
-  },
-  {
-    title: "Secure Payments",
-    description:
-      "Bank-level encryption with multiple payment options and fraud protection guarantee.",
-    icon: <CreditCard className="w-8 h-8" />,
-  },
-];
-
-const featuredProducts = [
-  {
-    id: 1,
-    name: "Premium Wireless Headset",
-    description:
-      "Immersive sound quality with noise cancellation for an exceptional audio experience",
-    price: 129.99,
-    oldPrice: 179.99,
-    rating: 4.8,
-    discount: 27,
-    image: "/images/headset-1.jpg",
-    category: "Audio",
-    brand: "SonicWave",
-  },
-  {
-    id: 2,
-    name: "Fast Charging Power Bank",
-    description:
-      "20000mAh high-capacity power bank with fast charging technology",
-    price: 49.99,
-    oldPrice: 69.99,
-    rating: 4.9,
-    discount: 28,
-    image: "/images/powerbank-1.jpg",
-    category: "Chargers",
-    brand: "PowerMax",
-  },
-  {
-    id: 3,
-    name: "Bluetooth Wireless Earbuds",
-    description:
-      "True wireless earbuds with touch controls and long battery life",
-    price: 89.99,
-    oldPrice: null,
-    rating: 4.7,
-    discount: 0,
-    image: "/images/earbuds-1.jpg",
-    category: "Audio",
-    brand: "AudioPro",
-  },
-  {
-    id: 4,
-    name: "High-Speed USB 3.0 Drive",
-    description: "Ultra-fast data transfer with 128GB storage capacity",
-    price: 29.99,
-    oldPrice: 39.99,
-    rating: 4.6,
-    discount: 25,
-    image: "/images/usb-1.jpg",
-    category: "Storage",
-    brand: "DataFlash",
-  },
-];

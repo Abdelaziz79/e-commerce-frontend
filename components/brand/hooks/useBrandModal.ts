@@ -1,11 +1,11 @@
 // components/brand/hooks/useBrandModal.ts
-import { useState } from "react";
 import {
   useCreateBrand,
-  useUpdateBrand,
   useDeleteBrand,
+  useUpdateBrand,
 } from "@/hooks/use-brand-hooks";
 import type { Brand, CreateBrandData, UpdateBrandData } from "@/types/brand";
+import { useState } from "react";
 
 const initialFormData: CreateBrandData = {
   name: "",
@@ -28,11 +28,11 @@ export function useBrandModal() {
     if (brand) {
       setEditingBrand(brand);
       setFormData({
-        name: brand.name,
-        description: brand.description || "",
-        logo: brand.logo || "",
-        website: brand.website || "",
-        isActive: brand.isActive,
+        name: brand?.name,
+        description: brand?.description || "",
+        logo: brand?.logo || "",
+        website: brand?.website || "",
+        isActive: brand?.isActive,
       });
     } else {
       setEditingBrand(null);
@@ -84,12 +84,10 @@ export function useBrandModal() {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm("Are you sure you want to delete this brand?")) {
-      try {
-        await deleteBrand.mutateAsync(id);
-      } catch (error) {
-        console.error("Failed to delete brand:", error);
-      }
+    try {
+      await deleteBrand.mutateAsync(id);
+    } catch (error) {
+      console.error("Failed to delete brand:", error);
     }
   };
 
