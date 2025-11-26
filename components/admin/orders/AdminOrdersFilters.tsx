@@ -35,7 +35,7 @@ export function AdminOrdersFilters({
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             ref={inputRef}
-            placeholder="Search by order #, customer name, or email..."
+            placeholder="Search by order number, customer name, or email..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="pl-11 pr-10 h-11 w-full border-gray-200 rounded-xl focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 bg-white shadow-sm transition-all"

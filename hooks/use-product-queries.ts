@@ -1,12 +1,17 @@
+// hooks/use-product-queries.ts
 import { apiClient } from "@/lib/apiClient";
 import {
+  LowStockListResponse,
   LowStockParams,
+  OutOfStockListResponse,
+  OutOfStockParams,
   ProductsParams,
   SearchProductsParams,
 } from "@/types/product";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Query keys
+// Query keys - ADD outOfStock to existing keys
 export const PRODUCT_KEYS = {
   all: ["products"] as const,
   lists: () => [...PRODUCT_KEYS.all, "list"] as const,
@@ -20,6 +25,10 @@ export const PRODUCT_KEYS = {
   lowStock: () => [...PRODUCT_KEYS.all, "lowStock"] as const,
   lowStockList: (params: LowStockParams) =>
     [...PRODUCT_KEYS.lowStock(), params] as const,
+  outOfStock: () => [...PRODUCT_KEYS.all, "outOfStock"] as const, // NEW
+  outOfStockList: (
+    params: OutOfStockParams // NEW
+  ) => [...PRODUCT_KEYS.outOfStock(), params] as const,
   details: () => [...PRODUCT_KEYS.all, "detail"] as const,
   detail: (id: string) => [...PRODUCT_KEYS.details(), id] as const,
 } as const;
@@ -100,21 +109,6 @@ export function useProductStats(enabled: boolean = true) {
   });
 }
 
-/**
- * Fetch low stock products (Admin only)
- */
-export function useLowStockProducts(
-  params: LowStockParams = {},
-  enabled: boolean = true
-) {
-  return useQuery({
-    queryKey: PRODUCT_KEYS.lowStockList(params),
-    queryFn: () => apiClient.getLowStockProducts(params),
-    enabled,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-  });
-}
-
 // --- UTILITY HOOKS ---
 
 /**
@@ -139,6 +133,68 @@ export function usePrefetchProducts() {
     queryClient.prefetchQuery({
       queryKey: PRODUCT_KEYS.list(params),
       queryFn: () => apiClient.getProducts(params),
+    });
+  };
+}
+
+/**
+ * Prefetch low stock products
+ */
+export function usePrefetchLowStockProducts() {
+  const queryClient = useQueryClient();
+  return (params: LowStockParams = {}) => {
+    queryClient.prefetchQuery({
+      queryKey: PRODUCT_KEYS.lowStockList(params),
+      queryFn: () => apiClient.getLowStockProducts(params),
+    });
+  };
+}
+
+/**
+ * Fetch low stock products with stock summary (Admin only)
+ * Returns products with stockSummary object and lowStockVariations
+ */
+export function useLowStockProducts(
+  params: LowStockParams = {},
+  enabled: boolean = true
+) {
+  return useQuery({
+    queryKey: PRODUCT_KEYS.lowStockList(params),
+    queryFn: (): Promise<LowStockListResponse> =>
+      apiClient.getLowStockProducts(params),
+    enabled,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+}
+
+/**
+ * Fetch out of stock products with stock summary (Admin only)
+ * Returns products with stockSummary object and outOfStockVariations
+ * NEW HOOK
+ */
+export function useOutOfStockProducts(
+  params: OutOfStockParams = {},
+  enabled: boolean = true
+) {
+  return useQuery({
+    queryKey: PRODUCT_KEYS.outOfStockList(params),
+    queryFn: (): Promise<OutOfStockListResponse> =>
+      apiClient.getOutOfStockProducts(params),
+    enabled,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+}
+
+/**
+ * Prefetch out of stock products
+ * NEW UTILITY HOOK
+ */
+export function usePrefetchOutOfStockProducts() {
+  const queryClient = useQueryClient();
+  return (params: OutOfStockParams = {}) => {
+    queryClient.prefetchQuery({
+      queryKey: PRODUCT_KEYS.outOfStockList(params),
+      queryFn: () => apiClient.getOutOfStockProducts(params),
     });
   };
 }

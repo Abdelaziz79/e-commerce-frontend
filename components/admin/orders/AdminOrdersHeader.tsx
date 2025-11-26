@@ -44,18 +44,6 @@ export function AdminOrdersHeader({
           {isExporting ? "Exporting..." : "Export Orders"}
         </Button>
       </div>
-
-      <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100/50 rounded-xl border border-gray-200">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-gray-900 rounded-full" />
-          <span className="text-sm font-medium text-gray-900">
-            {orderCount.toLocaleString()}
-          </span>
-          <span className="text-sm text-gray-600">
-            {orderCount === 1 ? "order" : "orders"} found
-          </span>
-        </div>
-      </div>
     </div>
   );
 }

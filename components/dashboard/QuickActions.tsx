@@ -1,7 +1,6 @@
 // components/dashboard/QuickActions.tsx
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Heart,
   Package,
@@ -14,7 +13,7 @@ import Link from "next/link";
 
 const actions = [
   {
-    label: "My Orders",
+    label: "Orders",
     href: "/orders",
     icon: Package,
     description: "Track orders",
@@ -33,9 +32,9 @@ const actions = [
   },
   {
     label: "Addresses",
-    href: "settings",
+    href: "/settings",
     icon: MapPin,
-    description: "Manage addresses",
+    description: "Manage",
   },
   {
     label: "Reviews",
@@ -47,39 +46,39 @@ const actions = [
     label: "Settings",
     href: "/settings",
     icon: Settings,
-    description: "Account settings",
+    description: "Account",
   },
 ];
 
 export function QuickActions() {
   return (
-    <Card className="border border-gray-200 shadow-none">
-      <CardHeader className="border-b border-gray-200 bg-white">
-        <CardTitle className="text-lg font-semibold">Quick Actions</CardTitle>
-      </CardHeader>
-      <CardContent className="p-4">
+    <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+      <div className="border-b border-slate-100 bg-slate-50 px-6 py-4">
+        <h3 className="text-sm font-semibold text-slate-900">Quick Actions</h3>
+      </div>
+      <div className="p-4">
         <div className="grid grid-cols-2 gap-3">
           {actions.map((action, index) => (
             <Link
               key={index}
               href={action.href}
-              className="group flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 hover:border-gray-200 hover:bg-gray-50 transition-all"
+              className="group flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200"
             >
-              <div className="p-2.5 rounded-lg bg-gray-50 group-hover:bg-white transition-colors">
-                <action.icon className="w-5 h-5 text-gray-600 group-hover:text-gray-900 transition-colors" />
+              <div className="p-2.5 rounded-lg bg-slate-50 group-hover:bg-blue-100 transition-colors">
+                <action.icon className="w-5 h-5 text-slate-600 group-hover:text-blue-600 transition-colors" />
               </div>
               <div className="text-center">
-                <span className="text-sm font-medium text-gray-900 block">
+                <span className="text-xs font-semibold text-slate-900 block">
                   {action.label}
                 </span>
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-slate-500 mt-0.5">
                   {action.description}
                 </span>
               </div>
             </Link>
           ))}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

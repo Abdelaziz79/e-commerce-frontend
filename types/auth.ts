@@ -6,6 +6,7 @@ export interface User {
   role: string;
   avatar: string;
   isEmailVerified: boolean;
+  phone?: string; // Add this line if it's missing
 }
 
 export interface AuthResponse {

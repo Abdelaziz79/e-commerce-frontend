@@ -25,6 +25,7 @@ export interface Address {
   city: string;
   postalCode: string;
   country: string;
+  phoneNumber?: string; // Added phone number to address
   isDefault: boolean;
 }
 

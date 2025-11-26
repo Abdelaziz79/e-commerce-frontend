@@ -30,7 +30,13 @@ import {
   UserUpdateResponse,
 } from "@/types/user";
 
-import { AddToCartData, CartResponse, UpdateCartItemData } from "@/types/cart";
+import {
+  AddToCartData,
+  CalculateCartTotalsData,
+  CartResponse,
+  CartTotalsResponse,
+  UpdateCartItemData,
+} from "@/types/cart";
 import {
   AddToFavoritesResponse,
   FavoritesResponse,
@@ -39,6 +45,7 @@ import {
 
 import {
   AddTrackingInfoData,
+  AnalyticsParams,
   CancelOrderData,
   CreateOrderData,
   OrderAnalyticsResponse,
@@ -58,7 +65,10 @@ import {
   BulkOperationResponse,
   BulkUpdateData,
   CreateProductData,
+  LowStockListResponse,
   LowStockParams,
+  OutOfStockListResponse,
+  OutOfStockParams,
   PaginatedProductsResponse,
   ProductListResponse,
   ProductResponse,
@@ -96,6 +106,37 @@ import {
   UpdateReviewData,
   VoteReviewResponse,
 } from "@/types/review";
+
+import {
+  AdminSettingsResponse,
+  CreateDiscountCodeData,
+  CreateShippingRateData,
+  CreateTaxRateData,
+  DiscountCodeResponse,
+  MessageResponse,
+  PublicSettingsResponse,
+  ShippingRateResponse,
+  TaxRateResponse,
+  ToggleResponse,
+  UpdateDiscountCodeData,
+  UpdateGeneralSettingsData,
+  UpdateShippingRateData,
+  UpdateTaxRateData,
+  ValidatedDiscountResponse,
+  ValidateDiscountCodeData,
+} from "@/types/adminSettings";
+
+import {
+  AdminPaginatedReviewsResponse,
+  BanUserData,
+  PaginatedUsersResponse,
+  UpdateUserRoleData,
+  UserActionResponse,
+  UserDetailResponse,
+  UserOrdersResponse,
+  UserReviewsResponse,
+  UsersParams,
+} from "@/types/admin";
 import { ApiClientError } from "./apiClientError";
 import { TokenStorage } from "./tokenStorage";
 
@@ -582,6 +623,20 @@ class ApiClient {
     return this.request<CartResponse>("delete", "/users/cart");
   };
 
+  /**
+   * Calculate cart totals with tax, shipping, and discount
+   * NEW METHOD - Add this after clearCart
+   */
+  calculateCartTotals = async (
+    data: CalculateCartTotalsData
+  ): Promise<CartTotalsResponse> => {
+    return this.request<CartTotalsResponse>(
+      "post",
+      "/users/cart/calculate",
+      data
+    );
+  };
+
   // ==================== FAVORITES ENDPOINTS ====================
 
   getFavorites = async (
@@ -650,11 +705,40 @@ class ApiClient {
    */
   getLowStockProducts = async (
     params: LowStockParams = {}
-  ): Promise<ProductListResponse> => {
+  ): Promise<LowStockListResponse> => {
     const queryString = this.createQueryString(params);
-    return this.request<ProductListResponse>(
+    return this.request<LowStockListResponse>(
       "get",
       `/products/low-stock${queryString}`
+    );
+  };
+
+  /**
+   * Adjust variation stock (Admin only)
+   */
+  adjustVariationStock = async (
+    productId: string,
+    variationId: string,
+    data: StockAdjustmentData
+  ): Promise<ProductResponse> => {
+    return this.request<ProductResponse>(
+      "patch",
+      `/products/${productId}/variations/${variationId}/stock`,
+      data
+    );
+  };
+
+  /**
+   * Get out of stock products (Admin only)
+   * ADD THIS METHOD after getLowStockProducts
+   */
+  getOutOfStockProducts = async (
+    params: OutOfStockParams = {}
+  ): Promise<OutOfStockListResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<OutOfStockListResponse>(
+      "get",
+      `/products/out-of-stock${queryString}`
     );
   };
 
@@ -1052,8 +1136,17 @@ class ApiClient {
     );
   };
 
-  getOrderAnalytics = async (): Promise<OrderAnalyticsResponse> => {
-    return this.request<OrderAnalyticsResponse>("get", "/orders/analytics");
+  /**
+   * Get order analytics with optional date range (Admin only)
+   */
+  getOrderAnalytics = async (
+    params: AnalyticsParams = {}
+  ): Promise<OrderAnalyticsResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<OrderAnalyticsResponse>(
+      "get",
+      `/orders/analytics${queryString}`
+    );
   };
 
   exportOrders = async (params: OrdersParams = {}): Promise<Blob> => {
@@ -1119,6 +1212,322 @@ class ApiClient {
       "put",
       `/orders/${orderId}/cancel`,
       data
+    );
+  };
+
+  // ==================== ADMIN SETTINGS ENDPOINTS ====================
+
+  /**
+   * Get all admin settings (Admin only)
+   */
+  getAdminSettings = async (): Promise<AdminSettingsResponse> => {
+    return this.request<AdminSettingsResponse>("get", "/admin-settings");
+  };
+
+  /**
+   * Get public settings (No auth required)
+   */
+  getPublicSettings = async (): Promise<PublicSettingsResponse> => {
+    return this.request<PublicSettingsResponse>(
+      "get",
+      "/admin-settings/public"
+    );
+  };
+
+  /**
+   * Update general settings (Admin only)
+   */
+  updateGeneralSettings = async (
+    data: UpdateGeneralSettingsData
+  ): Promise<AdminSettingsResponse> => {
+    return this.request<AdminSettingsResponse>(
+      "put",
+      "/admin-settings/general",
+      data
+    );
+  };
+
+  // ==================== TAX RATE ENDPOINTS ====================
+
+  /**
+   * Add tax rate (Admin only)
+   */
+  addTaxRate = async (data: CreateTaxRateData): Promise<TaxRateResponse> => {
+    return this.request<TaxRateResponse>("post", "/admin-settings/tax", data);
+  };
+
+  /**
+   * Update tax rate (Admin only)
+   */
+  updateTaxRate = async (
+    taxRateId: string,
+    data: UpdateTaxRateData
+  ): Promise<TaxRateResponse> => {
+    return this.request<TaxRateResponse>(
+      "put",
+      `/admin-settings/tax/${taxRateId}`,
+      data
+    );
+  };
+
+  /**
+   * Delete tax rate (Admin only)
+   */
+  deleteTaxRate = async (taxRateId: string): Promise<MessageResponse> => {
+    return this.request<MessageResponse>(
+      "delete",
+      `/admin-settings/tax/${taxRateId}`
+    );
+  };
+
+  /**
+   * Toggle tax enabled/disabled (Admin only)
+   */
+  toggleTaxEnabled = async (): Promise<ToggleResponse> => {
+    return this.request<ToggleResponse>("put", "/admin-settings/tax/toggle");
+  };
+
+  // ==================== SHIPPING RATE ENDPOINTS ====================
+
+  /**
+   * Add shipping rate (Admin only)
+   */
+  addShippingRate = async (
+    data: CreateShippingRateData
+  ): Promise<ShippingRateResponse> => {
+    return this.request<ShippingRateResponse>(
+      "post",
+      "/admin-settings/shipping",
+      data
+    );
+  };
+
+  /**
+   * Update shipping rate (Admin only)
+   */
+  updateShippingRate = async (
+    shippingRateId: string,
+    data: UpdateShippingRateData
+  ): Promise<ShippingRateResponse> => {
+    return this.request<ShippingRateResponse>(
+      "put",
+      `/admin-settings/shipping/${shippingRateId}`,
+      data
+    );
+  };
+
+  /**
+   * Delete shipping rate (Admin only)
+   */
+  deleteShippingRate = async (
+    shippingRateId: string
+  ): Promise<MessageResponse> => {
+    return this.request<MessageResponse>(
+      "delete",
+      `/admin-settings/shipping/${shippingRateId}`
+    );
+  };
+
+  /**
+   * Toggle shipping enabled/disabled (Admin only)
+   */
+  toggleShippingEnabled = async (): Promise<ToggleResponse> => {
+    return this.request<ToggleResponse>(
+      "put",
+      "/admin-settings/shipping/toggle"
+    );
+  };
+
+  // ==================== DISCOUNT CODE ENDPOINTS ====================
+
+  /**
+   * Add discount code (Admin only)
+   */
+  addDiscountCode = async (
+    data: CreateDiscountCodeData
+  ): Promise<DiscountCodeResponse> => {
+    return this.request<DiscountCodeResponse>(
+      "post",
+      "/admin-settings/discount",
+      data
+    );
+  };
+
+  /**
+   * Update discount code (Admin only)
+   */
+  updateDiscountCode = async (
+    discountCodeId: string,
+    data: UpdateDiscountCodeData
+  ): Promise<DiscountCodeResponse> => {
+    return this.request<DiscountCodeResponse>(
+      "put",
+      `/admin-settings/discount/${discountCodeId}`,
+      data
+    );
+  };
+
+  /**
+   * Delete discount code (Admin only)
+   */
+  deleteDiscountCode = async (
+    discountCodeId: string
+  ): Promise<MessageResponse> => {
+    return this.request<MessageResponse>(
+      "delete",
+      `/admin-settings/discount/${discountCodeId}`
+    );
+  };
+
+  /**
+   * Validate discount code (User)
+   */
+  validateDiscountCode = async (
+    data: ValidateDiscountCodeData
+  ): Promise<ValidatedDiscountResponse> => {
+    return this.request<ValidatedDiscountResponse>(
+      "post",
+      "/admin-settings/discount/validate",
+      data
+    );
+  };
+
+  // ==================== ADMIN USER MANAGEMENT ENDPOINTS ====================
+
+  /**
+   * Get all users (Admin)
+   */
+  getAllUsers = async (
+    params: UsersParams = {}
+  ): Promise<PaginatedUsersResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<PaginatedUsersResponse>(
+      "get",
+      `/admin/users${queryString}`
+    );
+  };
+
+  /**
+   * Get user by ID (Admin)
+   */
+  getUserById = async (userId: string): Promise<UserDetailResponse> => {
+    return this.request<UserDetailResponse>("get", `/admin/users/${userId}`);
+  };
+
+  /**
+   * Ban user (Admin)
+   */
+  banUser = async (
+    userId: string,
+    data: BanUserData
+  ): Promise<UserActionResponse> => {
+    return this.request<UserActionResponse>(
+      "put",
+      `/admin/users/${userId}/ban`,
+      data
+    );
+  };
+
+  /**
+   * Suspend user (Admin)
+   */
+  suspendUser = async (
+    userId: string,
+    data: BanUserData
+  ): Promise<UserActionResponse> => {
+    return this.request<UserActionResponse>(
+      "put",
+      `/admin/users/${userId}/suspend`,
+      data
+    );
+  };
+
+  /**
+   * Unban/unsuspend user (Admin)
+   */
+  unbanUser = async (userId: string): Promise<UserActionResponse> => {
+    return this.request<UserActionResponse>(
+      "put",
+      `/admin/users/${userId}/unban`
+    );
+  };
+
+  /**
+   * Update user role (Admin)
+   */
+  updateUserRole = async (
+    userId: string,
+    data: UpdateUserRoleData
+  ): Promise<UserActionResponse> => {
+    return this.request<UserActionResponse>(
+      "put",
+      `/admin/users/${userId}/role`,
+      data
+    );
+  };
+
+  /**
+   * Delete user (Admin)
+   */
+  deleteUser = async (
+    userId: string
+  ): Promise<{ status: string; message: string }> => {
+    return this.request<{ status: string; message: string }>(
+      "delete",
+      `/admin/users/${userId}`
+    );
+  };
+
+  /**
+   * Get user's reviews (Admin)
+   */
+  getUserReviews = async (
+    userId: string,
+    params: ReviewsParams = {}
+  ): Promise<UserReviewsResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<UserReviewsResponse>(
+      "get",
+      `/admin/users/${userId}/reviews${queryString}`
+    );
+  };
+
+  /**
+   * Get user's orders (Admin)
+   */
+  getUserOrders = async (
+    userId: string,
+    params: OrdersParams = {}
+  ): Promise<UserOrdersResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<UserOrdersResponse>(
+      "get",
+      `/admin/users/${userId}/orders${queryString}`
+    );
+  };
+
+  /**
+   * Get all reviews (Admin)
+   */
+  getAllReviews = async (
+    params: ReviewsParams = {}
+  ): Promise<AdminPaginatedReviewsResponse> => {
+    const queryString = this.createQueryString(params);
+    return this.request<AdminPaginatedReviewsResponse>(
+      "get",
+      `/admin/reviews${queryString}`
+    );
+  };
+
+  /**
+   * Delete review (Admin)
+   */
+  deleteReviewByAdmin = async (
+    reviewId: string
+  ): Promise<{ status: string; message: string }> => {
+    return this.request<{ status: string; message: string }>(
+      "delete",
+      `/admin/reviews/${reviewId}`
     );
   };
 }

@@ -81,32 +81,51 @@ export default function ProductPage() {
     );
   }
 
-  const selectedVariation = product.variations?.find(
-    (v) => v._id === selectedVariationId
-  );
-  const currentPrice =
-    selectedVariation?.price ??
-    (product.onSale && product.salePrice ? product.salePrice : product.price);
-  const originalPrice = selectedVariation
-    ? undefined
+  // Find selected variation or null if none selected
+  const selectedVariation = selectedVariationId
+    ? product.variations?.find((v) => v._id === selectedVariationId)
+    : null;
+
+  // Calculate current price based on selection
+  const currentPrice = selectedVariation
+    ? selectedVariation.price // Use variation price if selected
     : product.onSale && product.salePrice
-    ? product.price
-    : undefined;
+    ? product.salePrice // Use sale price for main product
+    : product.price; // Use regular price for main product
+
+  // Calculate original price (for showing discount)
+  const originalPrice =
+    !selectedVariation && product.onSale && product.salePrice
+      ? product.price
+      : undefined;
+
+  // Calculate discount percentage
   const discountPercent = originalPrice
     ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
     : 0;
-  const availableStock =
-    selectedVariation?.countInStock ?? product.countInStock;
+
+  // Get available stock based on selection
+  const availableStock = selectedVariation
+    ? selectedVariation.countInStock
+    : product.countInStock;
+
   const category = product.category as Category;
   const brandName =
     typeof product.brand === "object" ? product.brand?.name : "Unbranded";
 
   const handleAddToCart = () => {
-    if (product.hasVariations && !selectedVariationId) {
-      toast.error("Please select a product variation.");
+    // Optional: Validate stock availability
+    if (availableStock === 0) {
+      toast.error("This product is out of stock.");
       return;
     }
 
+    if (quantity > availableStock) {
+      toast.error(`Only ${availableStock} items available in stock.`);
+      return;
+    }
+
+    // Add to cart with or without variation
     addToCart({
       productId: product._id,
       quantity,
@@ -116,6 +135,13 @@ export default function ProductPage() {
 
   const handleAddToFavorites = () => {
     addToFavorites(product._id);
+  };
+
+  const handleVariationSelect = (variationId: string | null) => {
+    setSelectedVariationId(variationId);
+
+    // Reset quantity to 1 when changing variation to avoid stock issues
+    setQuantity(1);
   };
 
   return (
@@ -139,11 +165,15 @@ export default function ProductPage() {
               discountPercent={discountPercent}
             />
 
-            <ProductVariations
-              variations={product.variations || []}
-              selectedVariationId={selectedVariationId}
-              onSelectVariation={setSelectedVariationId}
-            />
+            {product.hasVariations &&
+              product.variations &&
+              product.variations.length > 0 && (
+                <ProductVariations
+                  variations={product.variations}
+                  selectedVariationId={selectedVariationId}
+                  onSelectVariation={handleVariationSelect}
+                />
+              )}
 
             <ProductActions
               quantity={quantity}

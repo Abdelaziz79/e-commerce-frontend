@@ -5,7 +5,7 @@ import { Check } from "lucide-react";
 interface ProductVariationsProps {
   variations: ProductVariation[];
   selectedVariationId: string | null;
-  onSelectVariation: (id: string) => void;
+  onSelectVariation: (id: string | null) => void;
 }
 
 export function ProductVariations({
@@ -32,7 +32,12 @@ export function ProductVariations({
           return (
             <button
               key={v._id}
-              onClick={() => !isOutOfStock && onSelectVariation(v._id!)}
+              onClick={() => {
+                if (isOutOfStock) return;
+                // Toggle logic: if already selected, unselect (pass null)
+                // Otherwise, select this variation
+                onSelectVariation(isSelected ? null : v._id!);
+              }}
               disabled={isOutOfStock}
               className={cn(
                 "relative p-3.5 rounded-lg border text-left transition-all",

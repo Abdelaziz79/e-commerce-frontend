@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { User } from "@/types/auth";
+import { UserProfileResponse } from "@/types/user";
 
 interface AuthContextType {
   user: User | null;
@@ -18,6 +19,7 @@ interface AuthContextType {
   login: (user: User, token: string) => void;
   logout: () => void;
   updateUser: (user: User) => void;
+  syncUserFromProfile: (profileData: UserProfileResponse) => void; // NEW: Sync from profile query
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,7 +42,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Get query client for syncing with React Query cache
   const queryClient = useQueryClient();
 
-  // Initialize auth state from localStorage (FIXED: SSR-safe)
+  // Initialize auth state from localStorage (SSR-safe)
   useEffect(() => {
     // Ensure we're on the client side
     if (typeof window === "undefined") {
@@ -112,6 +114,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
     queryClient.setQueryData(AUTH_KEYS.user, userData);
   };
 
+  // NEW: Sync user data from profile query
+  const syncUserFromProfile = (profileData: UserProfileResponse) => {
+    if (!profileData?.data) return;
+
+    const updatedUser: User = {
+      _id: profileData.data._id,
+      name: profileData.data.name,
+      email: profileData.data.email,
+      role: profileData.data.role,
+      avatar: profileData.data.avatar,
+      isEmailVerified: profileData.data.isEmailVerified,
+    };
+
+    // Only update if data has changed to prevent unnecessary re-renders
+    if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
+      setUser(updatedUser);
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("auth_user", JSON.stringify(updatedUser));
+      }
+
+      // Sync with React Query cache
+      queryClient.setQueryData(AUTH_KEYS.user, updatedUser);
+    }
+  };
+
   const value: AuthContextType = {
     user,
     token,
@@ -119,6 +147,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login,
     logout,
     updateUser,
+    syncUserFromProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

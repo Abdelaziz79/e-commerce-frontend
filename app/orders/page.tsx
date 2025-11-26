@@ -26,6 +26,7 @@ import {
   formatOrderStatus,
   useCancelOrder,
   useMyOrders,
+  useSearchOrders,
   useUserOrderStats,
 } from "@/hooks/use-orders";
 import { cn } from "@/lib/utils";
@@ -54,7 +55,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 // Helper function to get status color (moved outside component)
 function getOrderStatusColor(status: string) {
@@ -88,21 +89,55 @@ export default function Page() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [cancelReason, setCancelReason] = useState("");
 
-  const { data, isLoading, error } = useMyOrders({
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1); // Reset to first page on new search
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Use search hook when there's a search query, otherwise use regular orders hook
+  const isSearching = debouncedSearch.trim().length > 0;
+
+  const {
+    data: searchData,
+    isLoading: searchLoading,
+    error: searchError,
+  } = useSearchOrders({
+    q: debouncedSearch,
+    page,
+    limit: 10,
+    sort: "-createdAt",
+    ...(statusFilter !== "all" && { status: statusFilter }),
+  });
+
+  const {
+    data: ordersData,
+    isLoading: ordersLoading,
+    error: ordersError,
+  } = useMyOrders({
     page,
     limit: 10,
     ...(statusFilter !== "all" && { status: statusFilter }),
-    ...(searchQuery && { keyword: searchQuery }),
   });
 
   const { data: statsData, isLoading: statsLoading } = useUserOrderStats();
   const stats = statsData?.data;
 
   const { mutate: cancelOrder, isPending: isCancelling } = useCancelOrder();
+
+  // Use search results if searching, otherwise use regular orders
+  const data = isSearching ? searchData : ordersData;
+  const isLoading = isSearching ? searchLoading : ordersLoading;
+  const error = isSearching ? searchError : ordersError;
 
   const orders = data?.data?.orders || [];
   const pagination = data?.data?.pagination;
@@ -163,7 +198,7 @@ export default function Page() {
     },
     {
       title: "Completed",
-      value: stats?.completedOrders || 0,
+      value: stats?.completedOrders || 0, // ✅ Still works - backend provides this
       icon: PackageCheck,
       color: "text-emerald-600",
       bgColor: "bg-emerald-50",
@@ -174,6 +209,13 @@ export default function Page() {
       icon: TrendingUp,
       color: "text-purple-600",
       bgColor: "bg-purple-50",
+    },
+    {
+      title: "Delivered", // NEW: Now available from backend
+      value: stats?.deliveredOrders || 0,
+      icon: CheckCircle,
+      color: "text-green-600",
+      bgColor: "bg-green-50",
     },
   ];
 
@@ -192,7 +234,7 @@ export default function Page() {
 
         {/* Stats Cards */}
         {!statsLoading && stats && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
             {statCards.map((stat, idx) => (
               <Card
                 key={idx}
@@ -222,17 +264,23 @@ export default function Page() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Search by order number or product name..."
+                placeholder="Search by order number, address, city, or product name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 rounded-none h-10 border-gray-300 focus-visible:ring-gray-400"
               />
+              {isSearching && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                </div>
+              )}
             </div>
             <Select
               value={statusFilter}
-              onValueChange={(value) =>
-                setStatusFilter(value as OrderStatus | "all")
-              }
+              onValueChange={(value) => {
+                setStatusFilter(value as OrderStatus | "all");
+                setPage(1); // Reset to first page on filter change
+              }}
             >
               <SelectTrigger className="w-full sm:w-[200px] rounded-none h-10 border-gray-300">
                 <div className="flex items-center gap-2">
@@ -251,6 +299,23 @@ export default function Page() {
               </SelectContent>
             </Select>
           </div>
+          {isSearching && (
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <p className="text-xs text-gray-600">
+                <span className="font-medium">Searching for:</span> &quot;
+                {debouncedSearch}&quot;
+                {statusFilter !== "all" && (
+                  <span className="ml-2">
+                    in{" "}
+                    <span className="font-medium">
+                      {formatOrderStatus(statusFilter)}
+                    </span>{" "}
+                    orders
+                  </span>
+                )}
+              </p>
+            </div>
+          )}
         </Card>
 
         {/* Loading State */}
@@ -263,7 +328,7 @@ export default function Page() {
               </div>
             </div>
             <p className="text-gray-900 font-semibold text-base sm:text-lg mt-6">
-              Loading your orders...
+              {isSearching ? "Searching orders..." : "Loading your orders..."}
             </p>
             <p className="text-xs sm:text-sm text-gray-500 mt-2">
               This will only take a moment
@@ -304,24 +369,44 @@ export default function Page() {
               </div>
             </div>
             <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">
-              {searchQuery || statusFilter !== "all"
+              {isSearching || statusFilter !== "all"
                 ? "No orders found"
                 : "No orders yet"}
             </h3>
             <p className="text-sm sm:text-base text-gray-600 mb-6 text-center max-w-md px-4 leading-relaxed">
-              {searchQuery || statusFilter !== "all"
-                ? "Try adjusting your search or filters to find what you're looking for"
+              {isSearching
+                ? `No orders match "${debouncedSearch}". Try a different search term or adjust your filters.`
+                : statusFilter !== "all"
+                ? `You don't have any ${formatOrderStatus(
+                    statusFilter
+                  ).toLowerCase()} orders.`
                 : "Start shopping to see your orders appear here. Browse our collection and find something you love!"}
             </p>
-            <Button
-              asChild
-              className="rounded-none bg-gray-900 hover:bg-gray-800 font-semibold"
-            >
-              <Link href="/products">
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                Start Shopping
-              </Link>
-            </Button>
+            {isSearching || statusFilter !== "all" ? (
+              <Button
+                onClick={() => {
+                  setSearchQuery("");
+                  setDebouncedSearch("");
+                  setStatusFilter("all");
+                  setPage(1);
+                }}
+                variant="outline"
+                className="rounded-none font-semibold"
+              >
+                <RefreshCcw className="h-4 w-4 mr-2" />
+                Clear Filters
+              </Button>
+            ) : (
+              <Button
+                asChild
+                className="rounded-none bg-gray-900 hover:bg-gray-800 font-semibold"
+              >
+                <Link href="/products">
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  Start Shopping
+                </Link>
+              </Button>
+            )}
           </Card>
         )}
 
@@ -583,43 +668,48 @@ export default function Page() {
 
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
-          <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8 bg-white border border-gray-200 p-4 rounded-none">
-            <Button
-              variant="outline"
-              onClick={() => setPage(page - 1)}
-              disabled={page === 1}
-              className="rounded-none w-full sm:w-auto"
-            >
-              Previous
-            </Button>
-            <div className="flex items-center gap-2">
-              {[...Array(pagination.totalPages)]
-                .map((_, idx) => (
-                  <Button
-                    key={idx}
-                    variant={page === idx + 1 ? "default" : "outline"}
-                    onClick={() => setPage(idx + 1)}
-                    className={cn(
-                      "rounded-none w-10 h-10 p-0",
-                      page === idx + 1 && "bg-gray-900 hover:bg-gray-800"
-                    )}
-                  >
-                    {idx + 1}
-                  </Button>
-                ))
-                .slice(
-                  Math.max(0, page - 3),
-                  Math.min(pagination.totalPages, page + 2)
-                )}
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-8 bg-white border border-gray-200 p-4 rounded-none">
+            <div className="text-sm text-gray-600">
+              Showing {orders.length} of {pagination.total} orders
             </div>
-            <Button
-              variant="outline"
-              onClick={() => setPage(page + 1)}
-              disabled={page === pagination.totalPages}
-              className="rounded-none w-full sm:w-auto"
-            >
-              Next
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setPage(page - 1)}
+                disabled={page === 1}
+                className="rounded-none"
+              >
+                Previous
+              </Button>
+              <div className="flex items-center gap-2">
+                {[...Array(pagination.totalPages)]
+                  .map((_, idx) => (
+                    <Button
+                      key={idx}
+                      variant={page === idx + 1 ? "default" : "outline"}
+                      onClick={() => setPage(idx + 1)}
+                      className={cn(
+                        "rounded-none w-10 h-10 p-0",
+                        page === idx + 1 && "bg-gray-900 hover:bg-gray-800"
+                      )}
+                    >
+                      {idx + 1}
+                    </Button>
+                  ))
+                  .slice(
+                    Math.max(0, page - 3),
+                    Math.min(pagination.totalPages, page + 2)
+                  )}
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setPage(page + 1)}
+                disabled={page === pagination.totalPages}
+                className="rounded-none"
+              >
+                Next
+              </Button>
+            </div>
           </div>
         )}
       </div>

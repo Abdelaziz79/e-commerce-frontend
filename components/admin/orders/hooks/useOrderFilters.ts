@@ -1,6 +1,6 @@
-// hooks/useOrderFilters.ts - FIXED VERSION
+// hooks/useOrderFilters.ts - UPDATED VERSION
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { OrdersParams, OrderStatus } from "@/types/order";
+import { OrdersParams, OrderStatus, SearchOrdersParams } from "@/types/order";
 import { useDebounce } from "@/hooks/use-debounce";
 
 export type OrderStatusFilter = OrderStatus | "all";
@@ -30,7 +30,11 @@ export function useOrderFilters() {
     setStatusFilter(status);
   }, []);
 
-  const queryParams: OrdersParams = useMemo(() => {
+  // Determine if we should use search or regular fetch
+  const shouldUseSearch = Boolean(debouncedSearchQuery.trim());
+
+  // Query params for regular orders fetch (no search)
+  const ordersQueryParams: OrdersParams = useMemo(() => {
     const params: OrdersParams = {
       page,
       limit: 15,
@@ -40,19 +44,32 @@ export function useOrderFilters() {
       params.status = statusFilter as OrderStatus;
     }
 
-    if (debouncedSearchQuery) {
-      params.keyword = debouncedSearchQuery;
-    }
+    return params;
+  }, [page, statusFilter]);
+
+  // Search params for search orders
+  const searchQueryParams: SearchOrdersParams = useMemo(() => {
+    const params: SearchOrdersParams = {
+      q: debouncedSearchQuery,
+      page,
+      limit: 15,
+    };
+
+    // Note: If your backend supports status filtering in search,
+    // you might need to add it as a query parameter
+    // params.status = statusFilter !== "all" ? statusFilter : undefined;
 
     return params;
-  }, [page, statusFilter, debouncedSearchQuery]);
+  }, [debouncedSearchQuery, page]);
 
   return {
     page,
     searchQuery,
     debouncedSearchQuery,
     statusFilter,
-    queryParams,
+    shouldUseSearch,
+    ordersQueryParams,
+    searchQueryParams,
     handlePageChange,
     setSearchQuery: handleSearchQueryChange,
     handleStatusChange,

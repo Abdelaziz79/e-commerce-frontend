@@ -1,10 +1,6 @@
-// types/product.ts
-
 import { Brand } from "./brand";
 import { Category } from "./category";
 import { Review } from "./review";
-
-// --- SUB-DOCUMENTS ---
 
 export interface ProductVariation {
   _id?: string;
@@ -35,13 +31,12 @@ export interface Product {
   price: number;
   images: string[];
   mainImage: string;
-  // References are now objects when populated
   category: Category | string;
   brand: Brand | string;
   countInStock: number;
   rating: number;
   numReviews: number;
-  reviews?: Review[]; // Populated via virtual field
+  reviews?: Review[];
   hasVariations?: boolean;
   variations?: ProductVariation[];
   featured: boolean;
@@ -60,6 +55,78 @@ export interface Product {
   updatedAt: string;
 }
 
+// --- LOW STOCK TYPES ---
+
+export interface StockSummary {
+  mainStock: number;
+  mainStockStatus: "low" | "ok";
+  hasLowVariations: boolean;
+  lowVariationCount: number;
+  totalVariations: number;
+  affectedVariations: ProductVariation[];
+}
+
+export interface LowStockProduct extends Product {
+  stockSummary: StockSummary;
+  lowStockVariations?: ProductVariation[];
+  mainProductLowStock: boolean;
+  hasLowVariations: boolean;
+}
+
+export interface LowStockListResponse {
+  status: string;
+  results: number;
+  threshold: number;
+  data: LowStockProduct[];
+}
+
+export interface LowStockByCategory {
+  _id: string;
+  count: number;
+  products: Array<{
+    id: string;
+    name: string;
+    mainStock: number;
+    hasLowVariations: boolean;
+  }>;
+}
+
+export interface CriticalItem {
+  _id: string;
+  name: string;
+  mainStock: number;
+  lowStockVariations: ProductVariation[];
+}
+
+export interface OutOfStockSummary {
+  mainStock: number;
+  mainStockStatus: "out_of_stock" | "in_stock";
+  hasOutOfStockVariations: boolean;
+  outOfStockVariationCount: number;
+  inStockVariationCount: number;
+  totalVariations: number;
+  affectedVariations: ProductVariation[];
+  isCompletelyOutOfStock: boolean;
+}
+
+export interface OutOfStockProduct extends Product {
+  stockSummary: OutOfStockSummary;
+  outOfStockVariations?: ProductVariation[];
+  mainProductOutOfStock: boolean;
+  hasOutOfStockVariations: boolean;
+  outOfStockVariationCount: number;
+}
+
+export interface OutOfStockListResponse {
+  status: string;
+  results: number;
+  data: OutOfStockProduct[];
+}
+
+export interface OutOfStockParams {
+  includeVariations?: boolean;
+  [key: string]: string | number | boolean | undefined;
+}
 // --- API PARAMS & PAYLOADS ---
 
 export interface ProductsParams {
@@ -68,8 +135,8 @@ export interface ProductsParams {
   sort?: string;
   fields?: string;
   keyword?: string;
-  category?: string; // This will be the category ID
-  brand?: string; // This will be the brand ID
+  category?: string;
+  brand?: string;
   minPrice?: number;
   maxPrice?: number;
   featured?: boolean;
@@ -87,17 +154,18 @@ export interface SearchProductsParams {
 
 export interface LowStockParams {
   threshold?: number;
-  [key: string]: string | number | undefined;
+  includeVariations?: boolean;
+  [key: string]: string | number | boolean | undefined;
 }
 
 export interface CreateProductData {
   name: string;
   description: string;
   price: number;
-  category: string; // ID of the category
-  brand: string; // ID of the brand
+  category: string;
+  brand: string;
   countInStock?: number;
-  images?: File[] | string[]; // Support both File upload and URLs
+  images?: File[] | string[];
   mainImage?: File | string;
   richDescription?: string;
   hasVariations?: boolean;

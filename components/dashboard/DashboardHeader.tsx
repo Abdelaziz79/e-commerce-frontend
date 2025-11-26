@@ -4,7 +4,7 @@
 import { UserProfile } from "@/types/user";
 import { useUserAvatar, useUploadAvatar } from "@/hooks/use-user-mutations";
 import Image from "next/image";
-import { Sparkles, Camera } from "lucide-react";
+import { Camera } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { ImageCropDialog } from "@/components/settings/ImageCropDialog";
 import { getImageSrc } from "@/lib/utils";
@@ -21,9 +21,7 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
   const [imageError, setImageError] = useState(false);
 
   const currentHour = new Date().getHours();
-
   const fullAvatarUrl = getImageSrc(avatarUrl);
-
   const hasCustomAvatar =
     fullAvatarUrl && !fullAvatarUrl.includes("default-avatar");
 
@@ -62,35 +60,33 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
       <div className="">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center gap-6">
-            {/* AVATAR CONTAINER - Increased size to h-24 w-24 (96px) */}
-            <div className="relative group h-24 w-24 shrink-0">
-              {/* 1. Main Circle */}
-              <div className="relative h-full w-full overflow-hidden rounded-full border-4 border-white shadow-md bg-white">
+            {/* Avatar */}
+            <div className="relative group h-20 w-20 flex-shrink-0">
+              <div className="relative h-full w-full overflow-hidden rounded-full border-3 border-white shadow-md bg-white ring-1 ring-slate-200">
                 {hasCustomAvatar && !imageError ? (
                   <Image
                     src={fullAvatarUrl}
                     alt={user.name}
                     fill
-                    sizes="96px"
+                    sizes="80px"
                     className="object-cover"
                     priority
                     unoptimized
                     onError={() => setImageError(true)}
                   />
                 ) : (
-                  // 2. New Clean Fallback: White BG, Dark Text
-                  <div className="flex h-full w-full items-center justify-center bg-white text-4xl font-bold text-gray-800 border border-gray-100">
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 text-2xl font-bold text-indigo-600">
                     {user.name?.charAt(0).toUpperCase()}
                   </div>
                 )}
               </div>
 
-              {/* 3. Upload Overlay */}
+              {/* Upload overlay */}
               <label
                 htmlFor="dashboard-avatar-upload"
-                className="absolute inset-0 z-10 flex cursor-pointer items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                className="absolute inset-0 z-10 flex cursor-pointer items-center justify-center rounded-full bg-black/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
               >
-                <Camera className="h-8 w-8 text-white/90" />
+                <Camera className="h-6 w-6 text-white" />
                 <input
                   id="dashboard-avatar-upload"
                   type="file"
@@ -102,11 +98,11 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
                 />
               </label>
 
-              {/* 4. Verification Badge - Adjusted position for larger size */}
+              {/* Verification badge */}
               {user.isEmailVerified && (
-                <div className="absolute bottom-0 right-0 z-20 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-green-500 shadow-sm">
+                <div className="absolute bottom-0 right-0 z-20 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-emerald-500 shadow-sm">
                   <svg
-                    className="h-3.5 w-3.5 text-white"
+                    className="h-3 w-3 text-white"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
@@ -120,16 +116,13 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
               )}
             </div>
 
-            {/* TEXT SECTION */}
+            {/* Text section */}
             <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-                  {getGreeting()}, {user.name.split(" ")[0]}!
-                </h1>
-                <Sparkles className="w-6 h-6 text-yellow-500" />
-              </div>
-              <p className="text-base text-gray-500">
-                Here&apos;s your account overview
+              <h1 className="text-3xl font-bold text-slate-900">
+                {getGreeting()}, {user.name.split(" ")[0]}!
+              </h1>
+              <p className="mt-1 text-sm text-slate-500">
+                Welcome back to your dashboard
               </p>
             </div>
           </div>

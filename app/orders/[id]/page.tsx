@@ -21,6 +21,7 @@ import {
   useOrder,
 } from "@/hooks/use-orders";
 import { cn } from "@/lib/utils";
+import { CartItem } from "@/types/cart";
 import { OrderStatus } from "@/types/order";
 import { Product } from "@/types/product";
 import {
@@ -39,6 +40,7 @@ import {
   MessageSquare,
   Package,
   Phone,
+  Tag,
   Truck,
   User,
   XCircle,
@@ -48,7 +50,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
-// Helper function to get status color (moved outside component)
+// Helper function to get status color
 function getOrderStatusColor(status: string) {
   const statusColors: Record<string, string> = {
     pending: "text-yellow-600 bg-yellow-50",
@@ -74,6 +76,19 @@ function getProductId(product: Product | string): string {
     return product._id;
   }
   return "";
+}
+
+// Helper function to format variation info
+function formatVariationLabel(item: CartItem): string {
+  if (!item.variation) return "";
+
+  const parts = [];
+  if (item.variation.style) parts.push(item.variation.style);
+  if (item.variation.color) parts.push(item.variation.color);
+  if (item.variation.size) parts.push(item.variation.size);
+  if (item.variation.material) parts.push(item.variation.material);
+
+  return parts.length > 0 ? parts.join(" - ") : "";
 }
 
 export default function OrderDetailsPage() {
@@ -200,9 +215,7 @@ export default function OrderDetailsPage() {
               <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight mb-2">
                 Order Details
               </h1>
-              <p className="text-sm text-gray-600">
-                Order #{order.orderNumber}
-              </p>
+              <p className="text-sm text-gray-600">Order {order.orderNumber}</p>
             </div>
 
             <Badge
@@ -238,8 +251,9 @@ export default function OrderDetailsPage() {
 
                 <div className="space-y-4">
                   {order.orderItems.map((item, idx) => {
-                    // Extract product ID safely
                     const productId = getProductId(item.product);
+                    const variationLabel = formatVariationLabel(item);
+                    const hasVariation = !!item.variation?.sku;
 
                     return (
                       <div key={idx}>
@@ -247,7 +261,7 @@ export default function OrderDetailsPage() {
                           href={productId ? `/products/${productId}` : "#"}
                           className="flex items-start gap-4 group hover:bg-gray-50 p-3 -mx-3 rounded transition-colors"
                         >
-                          <div className="w-24 h-24 bg-gray-50 flex items-center justify-center flex-shrink-0 border border-gray-200">
+                          <div className="relative w-24 h-24 bg-gray-50 flex items-center justify-center flex-shrink-0 border border-gray-200">
                             <Image
                               src={item.image || "/placeholder.png"}
                               alt={item.name}
@@ -255,43 +269,93 @@ export default function OrderDetailsPage() {
                               height={96}
                               className="object-contain p-2"
                             />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-base font-semibold text-gray-900 group-hover:text-gray-700 transition-colors mb-2">
-                              {item.name}
-                            </h3>
-                            {item.variation && (
-                              <div className="flex flex-wrap gap-3 mb-3">
-                                {item.variation.size && (
-                                  <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                                    Size: {item.variation.size}
-                                  </span>
-                                )}
-                                {item.variation.color && (
-                                  <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                                    Color: {item.variation.color}
-                                  </span>
-                                )}
-                                {item.variation.material && (
-                                  <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                                    Material: {item.variation.material}
-                                  </span>
-                                )}
+                            {hasVariation && (
+                              <div className="absolute top-1 right-1 bg-blue-500 text-white p-1 rounded-sm">
+                                <Tag className="h-3 w-3" />
                               </div>
                             )}
-                            <div className="flex items-center justify-between">
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-base font-semibold text-gray-900 group-hover:text-gray-700 transition-colors mb-1">
+                              {item.name}
+                            </h3>
+
+                            {/* Variation Badge */}
+                            {hasVariation ? (
+                              <div className="mb-3">
+                                <div className="inline-flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-2 py-1 rounded mb-2">
+                                  <Tag className="h-3 w-3 text-blue-600" />
+                                  <span className="text-xs font-semibold text-blue-700 uppercase">
+                                    {variationLabel}
+                                  </span>
+                                </div>
+
+                                {/* Variation Details */}
+                                <div className="flex flex-wrap gap-2">
+                                  {item.variation?.size && (
+                                    <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
+                                      Size:{" "}
+                                      <span className="font-medium">
+                                        {item.variation.size}
+                                      </span>
+                                    </span>
+                                  )}
+                                  {item.variation?.color && (
+                                    <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
+                                      Color:{" "}
+                                      <span className="font-medium">
+                                        {item.variation.color}
+                                      </span>
+                                    </span>
+                                  )}
+                                  {item.variation?.material && (
+                                    <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
+                                      Material:{" "}
+                                      <span className="font-medium">
+                                        {item.variation.material}
+                                      </span>
+                                    </span>
+                                  )}
+                                  {item.variation?.style && (
+                                    <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
+                                      Style:{" "}
+                                      <span className="font-medium">
+                                        {item.variation.style}
+                                      </span>
+                                    </span>
+                                  )}
+                                  {item.variation?.sku && (
+                                    <span className="text-xs text-gray-500 bg-gray-50 px-2 py-0.5 rounded font-mono">
+                                      SKU: {item.variation.sku}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="mb-2">
+                                <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2 py-0.5 rounded">
+                                  <Package className="h-3 w-3" />
+                                  Standard Product
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Price and Quantity */}
+                            <div className="flex items-center justify-between mt-3">
                               <span className="text-sm text-gray-600">
                                 Quantity:{" "}
                                 <span className="font-semibold text-gray-900">
                                   {item.quantity}
                                 </span>
                               </span>
-                              <span className="text-sm text-gray-600">
-                                ${item.price.toFixed(2)} × {item.quantity}
-                              </span>
-                              <span className="text-base font-bold text-gray-900">
-                                ${(item.price * item.quantity).toFixed(2)}
-                              </span>
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm text-gray-600">
+                                  ${item.price.toFixed(2)} × {item.quantity}
+                                </span>
+                                <span className="text-base font-bold text-gray-900">
+                                  ${(item.price * item.quantity).toFixed(2)}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </Link>
@@ -467,23 +531,27 @@ export default function OrderDetailsPage() {
 
                 <div className="space-y-3 mb-5">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Subtotal</span>
+                    <span className="text-gray-600">Item(s) Price</span>
                     <span className="font-semibold text-gray-900">
-                      ${order.subtotal.toFixed(2)}
+                      ${order.itemsPrice.toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Shipping</span>
-                    <span className="font-semibold text-gray-900">
-                      ${order.shippingPrice.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Tax</span>
-                    <span className="font-semibold text-gray-900">
-                      ${order.taxPrice.toFixed(2)}
-                    </span>
-                  </div>
+                  {order.shippingPrice > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Shipping</span>
+                      <span className="font-semibold text-gray-900">
+                        ${order.shippingPrice.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                  {order.taxPrice > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Tax</span>
+                      <span className="font-semibold text-gray-900">
+                        ${order.taxPrice.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
                   {order.discountAmount > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-green-600">Discount</span>

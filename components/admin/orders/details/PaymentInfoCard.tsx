@@ -1,15 +1,33 @@
 // components/admin/orders/details/PaymentInfoCard.tsx
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useUpdateOrderToPaid } from "@/hooks/use-orders";
 import { Order } from "@/types/order";
 import { format } from "date-fns";
-import { CreditCard } from "lucide-react";
+import { CreditCard, Loader2 } from "lucide-react";
 
 interface PaymentInfoCardProps {
   order: Order;
 }
 
 export function PaymentInfoCard({ order }: PaymentInfoCardProps) {
+  const updateToPaidMutation = useUpdateOrderToPaid();
+
+  const handleMarkAsPaid = () => {
+    updateToPaidMutation.mutate({
+      orderId: order._id,
+      data: {
+        id: `admin_manual_${Date.now()}`,
+        status: "COMPLETED",
+        update_time: new Date().toISOString(),
+        email_address:
+          typeof order.user === "object" ? order.user.email : "manual@admin",
+        payment_method: "Manual Admin Entry",
+      },
+    });
+  };
+
   const paymentMethods: Record<string, string> = {
     card: "Credit Card",
     paypal: "PayPal",
@@ -25,7 +43,7 @@ export function PaymentInfoCard({ order }: PaymentInfoCardProps) {
           Payment Information
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-5 space-y-3">
+      <CardContent className="p-5 space-y-4">
         <div className="flex justify-between items-center">
           <span className="text-sm text-gray-600">Method</span>
           <span className="text-sm font-medium text-gray-900">
@@ -45,6 +63,24 @@ export function PaymentInfoCard({ order }: PaymentInfoCardProps) {
             {order.isPaid ? "Paid" : "Unpaid"}
           </Badge>
         </div>
+
+        {/* Admin Action: Mark as Paid */}
+        {!order.isPaid && order.status !== "cancelled" && (
+          <Button
+            onClick={handleMarkAsPaid}
+            disabled={updateToPaidMutation.isPending}
+            variant="outline"
+            className="w-full h-9 text-xs font-medium text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800"
+          >
+            {updateToPaidMutation.isPending ? (
+              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <CreditCard className="mr-2 h-3.5 w-3.5" />
+            )}
+            Mark as Paid Manually
+          </Button>
+        )}
+
         {order.paidAt && (
           <div className="pt-2 border-t border-gray-200">
             <p className="text-xs text-gray-500">Paid on</p>

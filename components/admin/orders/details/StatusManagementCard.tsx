@@ -14,11 +14,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   formatOrderStatus,
+  useCancelOrder,
   useUpdateOrderStatus,
   useUpdateOrderToDelivered,
 } from "@/hooks/use-orders";
 import { Order, OrderStatus } from "@/types/order";
-import { Loader2, Save, Truck } from "lucide-react";
+import { Ban, Loader2, Save, Truck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -29,6 +30,7 @@ interface StatusManagementCardProps {
 export function StatusManagementCard({ order }: StatusManagementCardProps) {
   const updateStatusMutation = useUpdateOrderStatus();
   const updateToDeliveredMutation = useUpdateOrderToDelivered();
+  const cancelOrderMutation = useCancelOrder();
 
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | "">("");
   const [statusNote, setStatusNote] = useState("");
@@ -81,6 +83,19 @@ export function StatusManagementCard({ order }: StatusManagementCardProps) {
       });
     } catch (error) {
       // Error handled by mutation
+    }
+  };
+
+  const handleCancelOrder = () => {
+    if (
+      confirm(
+        "Are you sure you want to cancel this order? This cannot be undone."
+      )
+    ) {
+      cancelOrderMutation.mutate({
+        orderId: order._id,
+        data: { reason: "Cancelled by Admin via Details Page" },
+      });
     }
   };
 
@@ -170,11 +185,11 @@ export function StatusManagementCard({ order }: StatusManagementCardProps) {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-2 pt-2">
+        <div className="flex flex-wrap gap-2 pt-2">
           <Button
             onClick={handleUpdateStatus}
             disabled={!selectedStatus || updateStatusMutation.isPending}
-            className="flex-1 h-10 rounded-lg"
+            className="flex-1 h-10 rounded-lg min-w-[120px]"
           >
             {updateStatusMutation.isPending ? (
               <>
@@ -189,6 +204,7 @@ export function StatusManagementCard({ order }: StatusManagementCardProps) {
             )}
           </Button>
 
+          {/* Quick Delivered Button */}
           {order.status === "shipped" && !order.isDelivered && (
             <Button
               onClick={handleMarkAsDelivered}
@@ -200,6 +216,25 @@ export function StatusManagementCard({ order }: StatusManagementCardProps) {
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 "Mark Delivered"
+              )}
+            </Button>
+          )}
+
+          {/* Cancel Button */}
+          {["pending", "processing", "on-hold"].includes(order.status) && (
+            <Button
+              onClick={handleCancelOrder}
+              disabled={cancelOrderMutation.isPending}
+              variant="outline"
+              className="h-10 px-4 rounded-lg border-gray-200 text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              {cancelOrderMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <Ban className="mr-2 h-4 w-4" />
+                  Cancel Order
+                </>
               )}
             </Button>
           )}

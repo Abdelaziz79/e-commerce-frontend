@@ -1,7 +1,21 @@
 // components/cart/OrderSummary.tsx
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowRight, Package, Shield, Truck } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { useCartTotals, useEstimatedTotals } from "@/hooks/use-cart-totals";
+import { cn } from "@/lib/utils";
+import {
+  AlertCircle,
+  ArrowRight,
+  Loader2,
+  Package,
+  Percent,
+  Shield,
+  Tag,
+  Truck,
+} from "lucide-react";
 import Link from "next/link";
 
 interface OrderSummaryProps {
@@ -10,44 +24,150 @@ interface OrderSummaryProps {
 }
 
 export function OrderSummary({ cartTotal, cartCount }: OrderSummaryProps) {
-  const shipping = 0; // Free shipping
-  const tax = cartTotal * 0.1; // 10% tax estimate
-  const total = cartTotal + shipping + tax;
+  // Use unified cart totals hook
+  const { totals, isCalculating, error, hasValidAddress } = useCartTotals({
+    autoCalculate: true,
+  });
+
+  // Get estimated totals as fallback
+  const estimatedTotals = useEstimatedTotals(cartTotal);
+
+  // Determine which totals to display
+  const displayTotals = totals && hasValidAddress && !error ? totals : null;
+  const showEstimated = !displayTotals;
 
   return (
     <div className="space-y-4">
       <Card className="p-6 border-slate-200 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900 mb-6">
-          Order Summary
-        </h2>
+        <h2 className="text-lg font-semibold text-slate-900 ">Order Summary</h2>
+
+        <Separator className="my-6" />
 
         {/* Price Breakdown */}
-        <div className="space-y-3 pb-5 mb-5 border-b border-slate-200">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-600">Subtotal ({cartCount} items)</span>
-            <span className="font-medium text-slate-900">
-              ${cartTotal.toFixed(2)}
-            </span>
+        {isCalculating ? (
+          <div className="flex items-center justify-center pb-6">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-600">Shipping</span>
-            <span className="font-medium text-emerald-600">Free</span>
+        ) : displayTotals ? (
+          // Actual calculated totals from backend
+          <div className="space-y-3 pb-5 mb-5 border-b border-slate-200">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600">
+                Subtotal ({cartCount} items)
+              </span>
+              <span className="font-medium text-slate-900">
+                ${displayTotals.itemsPrice.toFixed(2)}
+              </span>
+            </div>
+
+            {displayTotals.discount > 0 && (
+              <>
+                <div className="flex justify-between text-sm">
+                  <span className="text-green-600 flex items-center gap-1">
+                    <Percent className="h-3 w-3" />
+                    Discount
+                    {displayTotals.discountDetails && (
+                      <span className="text-xs">
+                        ({displayTotals.discountDetails.code})
+                      </span>
+                    )}
+                  </span>
+                  <span className="font-medium text-green-600">
+                    -${displayTotals.discount.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">After Discount</span>
+                  <span className="font-medium text-slate-900">
+                    ${displayTotals.subtotal.toFixed(2)}
+                  </span>
+                </div>
+              </>
+            )}
+
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600 flex items-center gap-1">
+                <Truck className="h-3 w-3" />
+                Shipping
+                {displayTotals.shippingDetails && (
+                  <span className="text-xs text-slate-500">
+                    ({displayTotals.shippingDetails.rateName})
+                  </span>
+                )}
+              </span>
+              <span
+                className={cn(
+                  "font-medium",
+                  displayTotals.shipping === 0
+                    ? "text-emerald-600"
+                    : "text-slate-900"
+                )}
+              >
+                {displayTotals.shipping === 0
+                  ? "Free"
+                  : `$${displayTotals.shipping.toFixed(2)}`}
+              </span>
+            </div>
+
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600 flex items-center gap-1">
+                <Tag className="h-3 w-3" />
+                Tax
+                {displayTotals.taxDetails && (
+                  <span className="text-xs text-slate-500">
+                    ({displayTotals.taxDetails.rate}%)
+                  </span>
+                )}
+              </span>
+              <span className="font-medium text-slate-900">
+                ${displayTotals.tax.toFixed(2)}
+              </span>
+            </div>
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-600">Tax (estimate)</span>
-            <span className="font-medium text-slate-900">
-              ${tax.toFixed(2)}
-            </span>
+        ) : (
+          // Estimated totals (no address selected)
+          <div className="space-y-3 pb-5 mb-5 border-b border-slate-200">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600">
+                Subtotal ({cartCount} items)
+              </span>
+              <span className="font-medium text-slate-900">
+                ${estimatedTotals.itemsPrice.toFixed(2)}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500 italic">Shipping (est.)</span>
+              <span className="font-medium text-slate-500 italic">
+                {estimatedTotals.shipping === 0
+                  ? "Free"
+                  : `$${estimatedTotals.shipping.toFixed(2)}`}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500 italic">Tax (est.)</span>
+              <span className="font-medium text-slate-500 italic">
+                ${estimatedTotals.tax.toFixed(2)}
+              </span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Total */}
         <div className="flex justify-between items-baseline mb-6">
           <span className="text-base font-semibold text-slate-900">Total</span>
           <span className="text-2xl font-bold text-slate-900">
-            ${total.toFixed(2)}
+            ${(displayTotals?.total || estimatedTotals.total).toFixed(2)}
           </span>
         </div>
+
+        {showEstimated && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-xs text-blue-800 flex items-center gap-1">
+              <AlertCircle className="h-3 w-3" />
+              Showing estimated total. Select address for accurate calculation.
+            </p>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="space-y-3">
@@ -55,6 +175,7 @@ export function OrderSummary({ cartTotal, cartCount }: OrderSummaryProps) {
             size="lg"
             className="w-full gap-2 h-12 text-base shadow-sm hover:shadow-md transition-shadow"
             asChild
+            disabled={cartCount === 0}
           >
             <Link href="/checkout">
               Proceed to Checkout

@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 // Hooks
 import { useLogout } from "@/hooks/use-auth-mutations";
@@ -44,7 +44,6 @@ import { cn } from "@/lib/utils";
 
 export function Navbar() {
   const pathname = usePathname();
-  const [isScrolled, setIsScrolled] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   // Auth & Data
@@ -58,15 +57,6 @@ export function Navbar() {
 
   const favoritesCount = favoritesData?.data?.favorites?.length || 0;
 
-  // Handle scroll effect
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 0);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
   const handleLogout = () => {
     logoutMutation.mutate();
   };
@@ -79,11 +69,8 @@ export function Navbar() {
   ];
 
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-50 w-full transition-all duration-200 border-b border-gray-200"
-      )}
-    >
+    // FIX: Changed 'sticky' to 'relative' to prevent layout overlap issues
+    <header className="relative w-full border-b border-gray-200 bg-white z-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 sm:h-20 items-center justify-between gap-4">
           {/* 1. LEFT: Logo & Mobile Trigger */}
@@ -177,25 +164,23 @@ export function Navbar() {
                 TechStore
               </span>
             </Link>
+            <nav className="hidden lg:flex items-center gap-1">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
+                    pathname === link.href
+                      ? "text-gray-900 bg-gray-100"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                  )}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
           </div>
-
-          {/* 2. CENTER: Desktop Nav */}
-          <nav className="hidden lg:flex items-center gap-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
-                  pathname === link.href
-                    ? "text-gray-900 bg-gray-100"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                )}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
 
           {/* 3. RIGHT: Search & Actions */}
           <div className="flex items-center gap-2 sm:gap-3">

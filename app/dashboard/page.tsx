@@ -2,12 +2,12 @@
 "use client";
 
 import { LoadingDisplay } from "@/components/cart/LoadingDisplay";
-import { AccountSummary } from "@/components/dashboard/AccountSummary";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-import { OrdersOverview } from "@/components/dashboard/OrdersOverview";
-import { QuickActions } from "@/components/dashboard/QuickActions";
+import { StatsOverview } from "@/components/dashboard/StatsOverview";
 import { RecentOrders } from "@/components/dashboard/RecentOrders";
 import { RecentReviews } from "@/components/dashboard/RecentReviews";
+import { QuickActions } from "@/components/dashboard/QuickActions";
+import { AccountSummary } from "@/components/dashboard/AccountSummary";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import ErrorState from "@/components/shared/ErrorState";
 import { useMyOrders, useUserOrderStats } from "@/hooks/use-orders";
@@ -30,7 +30,7 @@ function UserDashboardContent() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto max-w-7xl px-4 py-8">
+      <div className="min-h-screen bg-slate-50 px-4 py-8">
         <LoadingDisplay />
       </div>
     );
@@ -38,27 +38,29 @@ function UserDashboardContent() {
 
   if (!profile || !orderStats) {
     return (
-      <div className="container mx-auto max-w-7xl px-4 py-8">
+      <div className="min-h-screen bg-slate-50 px-4 py-8">
         <ErrorState error={null} title="Failed to load dashboard data" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <DashboardHeader user={profile.data} />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <OrdersOverview stats={orderStats.data} />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Stats Overview */}
+        <StatsOverview stats={orderStats.data} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-8">
-          {/* Main Content - 8 columns */}
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Column - Orders & Reviews */}
           <div className="lg:col-span-8 space-y-6">
             <RecentOrders orders={recentOrders?.data?.orders || []} />
             <RecentReviews reviews={recentReviews?.data?.reviews || []} />
           </div>
 
-          {/* Sidebar - 4 columns */}
+          {/* Right Sidebar */}
           <div className="lg:col-span-4 space-y-6">
             <QuickActions />
             <AccountSummary user={profile.data} />

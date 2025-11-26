@@ -9,6 +9,7 @@ import {
   UserProfileResponse,
 } from "@/types/user";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth } from "./auth-context";
 
@@ -21,12 +22,12 @@ export const USER_KEYS = {
 // ============ QUERIES ============
 
 /**
- * Hook to fetch user profile
+ * Hook to fetch user profile (UPDATED: Auto-syncs with auth context)
  */
 export function useUserProfile() {
-  const { token } = useAuth();
+  const { token, syncUserFromProfile } = useAuth();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: USER_KEYS.profile,
     queryFn: () => apiClient.getUserProfile(),
     enabled: !!token, // Only run if user is authenticated
@@ -43,25 +44,30 @@ export function useUserProfile() {
       return failureCount < 3;
     },
   });
+
+  // UPDATED: Sync profile data to auth context whenever it changes
+  useEffect(() => {
+    if (query.data) {
+      syncUserFromProfile(query.data);
+    }
+  }, [query.data, syncUserFromProfile]);
+
+  return query;
 }
 
 // ============ MUTATIONS ============
 
 /**
- * Hook to update user profile
+ * Hook to update user profile (UPDATED: Better sync)
  */
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
-  const { updateUser } = useAuth();
 
   return useMutation({
     mutationFn: (data: UpdateProfileData) => apiClient.updateUserProfile(data),
-    onSuccess: (response) => {
-      // Update auth context with new user data
-      const { ...userData } = response.data;
-      updateUser(userData);
-
-      // Update React Query cache
+    onSuccess: () => {
+      // Invalidate profile query to trigger refetch
+      // This will automatically sync to auth context via useUserProfile's useEffect
       queryClient.invalidateQueries({ queryKey: USER_KEYS.profile });
 
       toast.success("Profile updated successfully!");
@@ -103,11 +109,11 @@ export function useUpdatePassword() {
 // ============ AVATAR MUTATIONS ============
 
 /**
- * Hook to upload/update user avatar
+ * Hook to upload/update user avatar (UPDATED: Better sync)
  */
 export function useUploadAvatar() {
   const queryClient = useQueryClient();
-  const { updateUser, user } = useAuth();
+  const { syncUserFromProfile } = useAuth();
 
   return useMutation({
     mutationFn: (file: File) => apiClient.uploadAvatar(file),
@@ -117,29 +123,27 @@ export function useUploadAvatar() {
     onSuccess: (response) => {
       toast.dismiss("avatar-upload");
 
-      // Update auth context with new avatar
-      if (user) {
-        updateUser({ ...user, avatar: response.data.avatar });
-      }
-
-      // Update React Query cache
+      // Update React Query cache optimistically
       queryClient.setQueryData(
         USER_KEYS.profile,
         (oldData: UserProfileResponse | undefined) => {
           if (oldData) {
-            return {
+            const updatedData = {
               ...oldData,
               data: {
                 ...oldData.data,
                 avatar: response.data.avatar,
               },
             };
+            // Sync to auth context
+            syncUserFromProfile(updatedData);
+            return updatedData;
           }
           return oldData;
         }
       );
 
-      // Invalidate profile query to ensure fresh data
+      // Invalidate to ensure fresh data
       queryClient.invalidateQueries({ queryKey: USER_KEYS.profile });
 
       toast.success(response.message || "Avatar uploaded successfully!");
@@ -152,11 +156,11 @@ export function useUploadAvatar() {
 }
 
 /**
- * Hook to delete user avatar (reset to default)
+ * Hook to delete user avatar (UPDATED: Better sync)
  */
 export function useDeleteAvatar() {
   const queryClient = useQueryClient();
-  const { updateUser, user } = useAuth();
+  const { syncUserFromProfile } = useAuth();
 
   return useMutation({
     mutationFn: () => apiClient.deleteAvatar(),
@@ -166,29 +170,27 @@ export function useDeleteAvatar() {
     onSuccess: (response) => {
       toast.dismiss("avatar-delete");
 
-      // Update auth context with default avatar
-      if (user) {
-        updateUser({ ...user, avatar: response.data.avatar });
-      }
-
       // Update React Query cache
       queryClient.setQueryData(
         USER_KEYS.profile,
         (oldData: UserProfileResponse | undefined) => {
           if (oldData) {
-            return {
+            const updatedData = {
               ...oldData,
               data: {
                 ...oldData.data,
                 avatar: response.data.avatar,
               },
             };
+            // Sync to auth context
+            syncUserFromProfile(updatedData);
+            return updatedData;
           }
           return oldData;
         }
       );
 
-      // Invalidate profile query to ensure fresh data
+      // Invalidate to ensure fresh data
       queryClient.invalidateQueries({ queryKey: USER_KEYS.profile });
 
       toast.success(response.message || "Avatar deleted successfully!");
@@ -356,7 +358,7 @@ export function useDefaultAddress() {
 }
 
 /**
- * Hook to get user avatar URL (FIXED: Better URL handling)
+ * Hook to get user avatar URL
  */
 export function useUserAvatar() {
   const { data: profileData } = useUserProfile();

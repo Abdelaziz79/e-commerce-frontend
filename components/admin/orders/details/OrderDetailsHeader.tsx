@@ -33,7 +33,7 @@ export function OrderDetailsHeader({ order, onBack }: OrderDetailsHeaderProps) {
               <Package className="h-5 w-5 text-white" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-              Order #{order.orderNumber}
+              Order {order.orderNumber}
             </h1>
             <Badge
               variant="outline"

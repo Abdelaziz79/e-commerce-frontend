@@ -18,11 +18,10 @@ import {
   useUserProfile,
 } from "@/hooks/use-user-mutations";
 import { AddAddressData, Address } from "@/types/user";
-import { Home, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
+import { Home, Loader2, MapPin, Phone, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-// Address Section Component (No changes needed)
 function AddressSection() {
   const { data: profileData } = useUserProfile();
   const addAddress = useAddAddress();
@@ -36,6 +35,7 @@ function AddressSection() {
     city: "",
     postalCode: "",
     country: "",
+    phoneNumber: "", // Added phone number
     isDefault: false,
   });
 
@@ -48,7 +48,16 @@ function AddressSection() {
       !newAddress.postalCode ||
       !newAddress.country
     ) {
-      toast.error("Please fill in all address fields");
+      toast.error("Please fill in all required address fields");
+      return;
+    }
+
+    // Validate phone number if provided
+    if (
+      newAddress.phoneNumber &&
+      !/^\+?[\d\s-()]{10,20}$/.test(newAddress.phoneNumber)
+    ) {
+      toast.error("Please enter a valid phone number");
       return;
     }
 
@@ -60,6 +69,7 @@ function AddressSection() {
           city: "",
           postalCode: "",
           country: "",
+          phoneNumber: "",
           isDefault: false,
         });
       },
@@ -73,7 +83,16 @@ function AddressSection() {
       !newAddress.postalCode ||
       !newAddress.country
     ) {
-      toast.error("Please fill in all address fields");
+      toast.error("Please fill in all required address fields");
+      return;
+    }
+
+    // Validate phone number if provided
+    if (
+      newAddress.phoneNumber &&
+      !/^\+?[\d\s-()]{10,20}$/.test(newAddress.phoneNumber)
+    ) {
+      toast.error("Please enter a valid phone number");
       return;
     }
 
@@ -87,6 +106,7 @@ function AddressSection() {
             city: "",
             postalCode: "",
             country: "",
+            phoneNumber: "",
             isDefault: false,
           });
         },
@@ -101,6 +121,7 @@ function AddressSection() {
       city: address.city,
       postalCode: address.postalCode,
       country: address.country,
+      phoneNumber: address.phoneNumber || "",
       isDefault: address.isDefault,
     });
     setIsAddingNew(false);
@@ -114,6 +135,7 @@ function AddressSection() {
       city: "",
       postalCode: "",
       country: "",
+      phoneNumber: "",
       isDefault: false,
     });
   };
@@ -153,7 +175,7 @@ function AddressSection() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2 space-y-2">
                 <Label htmlFor="address" className="text-sm font-medium">
-                  Street Address
+                  Street Address <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="address"
@@ -168,7 +190,7 @@ function AddressSection() {
 
               <div className="space-y-2">
                 <Label htmlFor="city" className="text-sm font-medium">
-                  City
+                  City <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="city"
@@ -183,7 +205,7 @@ function AddressSection() {
 
               <div className="space-y-2">
                 <Label htmlFor="postalCode" className="text-sm font-medium">
-                  Postal Code
+                  Postal Code <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="postalCode"
@@ -198,7 +220,7 @@ function AddressSection() {
 
               <div className="md:col-span-2 space-y-2">
                 <Label htmlFor="country" className="text-sm font-medium">
-                  Country
+                  Country <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="country"
@@ -209,6 +231,28 @@ function AddressSection() {
                   className="h-10 rounded-none border-gray-200"
                   placeholder="United States"
                 />
+              </div>
+
+              <div className="md:col-span-2 space-y-2">
+                <Label htmlFor="phoneNumber" className="text-sm font-medium">
+                  Phone Number <span className="text-gray-400">(Optional)</span>
+                </Label>
+                <Input
+                  id="phoneNumber"
+                  type="tel"
+                  value={newAddress.phoneNumber}
+                  onChange={(e) =>
+                    setNewAddress({
+                      ...newAddress,
+                      phoneNumber: e.target.value,
+                    })
+                  }
+                  className="h-10 rounded-none border-gray-200"
+                  placeholder="+1 (555) 123-4567"
+                />
+                <p className="text-xs text-gray-500">
+                  For delivery contact purposes
+                </p>
               </div>
 
               <div className="md:col-span-2 flex items-center gap-2">
@@ -294,6 +338,12 @@ function AddressSection() {
                       {address.city}, {address.postalCode}
                     </p>
                     <p className="text-sm text-gray-600">{address.country}</p>
+                    {address.phoneNumber && (
+                      <div className="flex items-center gap-1 mt-2 text-sm text-gray-600">
+                        <Phone className="h-3 w-3" />
+                        <span>{address.phoneNumber}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button

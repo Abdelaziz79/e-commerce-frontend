@@ -3,6 +3,7 @@ import { apiClient } from "@/lib/apiClient";
 import { ApiError } from "@/types/auth";
 import {
   AddTrackingInfoData,
+  AnalyticsParams,
   CancelOrderData,
   CreateOrderData,
   Order,
@@ -14,6 +15,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "./auth-context";
+import { useUserProfile } from "./use-user-mutations";
 
 // Query keys
 export const ORDER_KEYS = {
@@ -124,15 +126,17 @@ export function useUserOrderStats() {
 }
 
 /**
- * Hook to fetch order analytics (Admin only)
+ * Hook to fetch order analytics with date range support (Admin only)
  */
-export function useOrderAnalytics() {
-  const { token, user } = useAuth();
+export function useOrderAnalytics(params: AnalyticsParams = {}) {
+  const { token } = useAuth();
+  const { data } = useUserProfile();
+  const user = data?.data;
   const isAdmin = user?.role === "admin";
 
   return useQuery({
-    queryKey: ORDER_KEYS.analytics(),
-    queryFn: () => apiClient.getOrderAnalytics(),
+    queryKey: [...ORDER_KEYS.analytics(), params],
+    queryFn: () => apiClient.getOrderAnalytics(params),
     enabled: !!token && isAdmin,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
@@ -140,16 +144,41 @@ export function useOrderAnalytics() {
 }
 
 /**
- * Hook to search orders (Admin only)
+ * Hook to search orders
+ * - Regular users can search their own orders
+ * - Admins can search all orders
  */
 export function useSearchOrders(params: SearchOrdersParams) {
-  const { token, user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const { token } = useAuth();
 
   return useQuery({
     queryKey: ORDER_KEYS.search(params),
     queryFn: () => apiClient.searchOrders(params),
-    enabled: !!token && isAdmin && !!params.q,
+    enabled: !!token && !!params.q,
+    staleTime: 1000 * 30, // 30 seconds
+    gcTime: 1000 * 60 * 5, // 5 minutes
+    retry: (failureCount, error) => {
+      if (error instanceof Error && "status" in error) {
+        const apiError = error as ApiError;
+        if (apiError.status === 401 || apiError.status === 403) {
+          return false;
+        }
+      }
+      return failureCount < 2;
+    },
+  });
+}
+
+/**
+ * Hook to search user's own orders with pagination
+ */
+export function useSearchMyOrders(params: SearchOrdersParams) {
+  const { token } = useAuth();
+
+  return useQuery({
+    queryKey: [...ORDER_KEYS.myOrders(), "search", params],
+    queryFn: () => apiClient.searchOrders(params),
+    enabled: !!token && !!params.q,
     staleTime: 1000 * 30, // 30 seconds
     gcTime: 1000 * 60 * 5, // 5 minutes
   });

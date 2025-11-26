@@ -34,6 +34,17 @@ export function CartItemCard({ item }: CartItemCardProps) {
   const isOutOfStock = item.stockStatus === "out_of_stock";
   const isUnavailable = item.stockStatus === "unavailable";
 
+  // Determine the correct price to display
+  const displayPrice = item.currentPrice || item.price;
+  const originalPrice = item.price;
+  const hasPriceChange = item.priceChanged && item.currentPrice !== item.price;
+
+  // Check if item is on sale
+  const isOnSale =
+    typeof item.product === "object" &&
+    "onSale" in item.product &&
+    (item.product as Product).onSale;
+
   const handleUpdateQuantity = async (change: number) => {
     const newQuantity = item.quantity + change;
     if (newQuantity < 1) return;
@@ -59,16 +70,16 @@ export function CartItemCard({ item }: CartItemCardProps) {
   return (
     <Card className="group p-6 transition-all hover:shadow-lg border-slate-200">
       <div className="flex gap-6">
-        {/* Product Image - Now clickable and better sizing */}
+        {/* Product Image */}
         <Link
           href={`/products/${productId}`}
-          className="relative w-32 h-32 flex-shrink-0 rounded-xl overflow-hidden "
+          className="relative w-32 h-32 flex-shrink-0 rounded-xl overflow-hidden"
         >
           <Image
             src={getImageSrc(item.image)}
             alt={item.name}
             fill
-            className="object-contain p-2 transition-transform "
+            className="object-contain p-2 transition-transform"
             sizes="128px"
           />
         </Link>
@@ -87,6 +98,14 @@ export function CartItemCard({ item }: CartItemCardProps) {
               {/* Variation Details */}
               {item.variation && (
                 <div className="flex flex-wrap gap-3 text-sm text-slate-500 mt-2">
+                  {item.variation.style && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="text-slate-400">Edition:</span>
+                      <span className="font-medium text-slate-700">
+                        {item.variation.style}
+                      </span>
+                    </span>
+                  )}
                   {item.variation.color && (
                     <span className="inline-flex items-center gap-1.5">
                       <span className="text-slate-400">Color:</span>
@@ -101,6 +120,11 @@ export function CartItemCard({ item }: CartItemCardProps) {
                       <span className="font-medium text-slate-700">
                         {item.variation.size}
                       </span>
+                    </span>
+                  )}
+                  {item.variation.sku && (
+                    <span className="text-xs text-slate-400">
+                      SKU: {item.variation.sku}
                     </span>
                   )}
                 </div>
@@ -122,12 +146,20 @@ export function CartItemCard({ item }: CartItemCardProps) {
 
           {/* Badges Section */}
           <div className="flex flex-wrap gap-2 mb-auto">
-            {item.priceChanged && item.currentPrice && (
+            {isOnSale && (
               <Badge
                 variant="default"
                 className="bg-emerald-50 text-emerald-700 border-emerald-200 font-medium"
               >
-                Price updated: ${item.currentPrice.toFixed(2)}
+                On Sale
+              </Badge>
+            )}
+            {hasPriceChange && (
+              <Badge
+                variant="default"
+                className="bg-blue-50 text-blue-700 border-blue-200 font-medium"
+              >
+                Price updated: ${displayPrice.toFixed(2)}
               </Badge>
             )}
             {(isOutOfStock || isUnavailable) && (
@@ -136,6 +168,14 @@ export function CartItemCard({ item }: CartItemCardProps) {
                 className="bg-red-50 text-red-700 border-red-200 font-medium"
               >
                 {isUnavailable ? "No longer available" : "Out of stock"}
+              </Badge>
+            )}
+            {item.maxQuantity !== undefined && item.maxQuantity <= 10 && (
+              <Badge
+                variant="outline"
+                className="bg-amber-50 text-amber-700 border-amber-200 font-medium"
+              >
+                Only {item.maxQuantity} left
               </Badge>
             )}
           </div>
@@ -189,12 +229,11 @@ export function CartItemCard({ item }: CartItemCardProps) {
             {/* Price */}
             <div className="text-right">
               <p className="text-xl font-bold text-slate-900">
-                $
-                {((item.currentPrice || item.price) * item.quantity).toFixed(2)}
+                ${(displayPrice * item.quantity).toFixed(2)}
               </p>
-              {item.priceChanged && (
+              {hasPriceChange && (
                 <p className="text-sm text-slate-400 line-through mt-0.5">
-                  ${(item.price * item.quantity).toFixed(2)}
+                  ${(originalPrice * item.quantity).toFixed(2)}
                 </p>
               )}
             </div>

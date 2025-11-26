@@ -16,9 +16,6 @@ import { PRODUCT_KEYS } from "./use-product-queries";
 
 // --- PRODUCT CRUD MUTATIONS ---
 
-/**
- * Create a new product
- */
 export function useCreateProduct() {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -35,9 +32,6 @@ export function useCreateProduct() {
   });
 }
 
-/**
- * Update an existing product
- */
 export function useUpdateProduct() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -61,9 +55,6 @@ export function useUpdateProduct() {
   });
 }
 
-/**
- * Delete a product
- */
 export function useDeleteProduct() {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -83,9 +74,6 @@ export function useDeleteProduct() {
 
 // --- BULK OPERATIONS ---
 
-/**
- * Bulk update multiple products
- */
 export function useBulkUpdateProducts() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -102,15 +90,11 @@ export function useBulkUpdateProducts() {
   });
 }
 
-/**
- * Bulk delete multiple products
- */
 export function useBulkDeleteProducts() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: BulkDeleteData) => apiClient.bulkDeleteProducts(data),
     onSuccess: (response, variables) => {
-      // Remove individual product queries
       variables.productIds.forEach((id) => {
         queryClient.removeQueries({ queryKey: PRODUCT_KEYS.detail(id) });
       });
@@ -128,7 +112,8 @@ export function useBulkDeleteProducts() {
 // --- STOCK MANAGEMENT ---
 
 /**
- * Adjust product stock
+ * Adjust main product stock
+ * UPDATED VERSION - now also invalidates outOfStock cache
  */
 export function useAdjustProductStock() {
   const queryClient = useQueryClient();
@@ -146,6 +131,7 @@ export function useAdjustProductStock() {
       });
       queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.lists() });
       queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.lowStock() });
+      queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.outOfStock() }); // NEW LINE
       queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.stats() });
       toast.success(
         `Stock adjusted by ${variables.data.adjustment}${
@@ -158,11 +144,43 @@ export function useAdjustProductStock() {
   });
 }
 
+/**
+ * Adjust variation stock
+ * UPDATED VERSION - now also invalidates outOfStock cache
+ */
+export function useAdjustVariationStock() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      productId,
+      variationId,
+      data,
+    }: {
+      productId: string;
+      variationId: string;
+      data: StockAdjustmentData;
+    }) => apiClient.adjustVariationStock(productId, variationId, data),
+    onSuccess: (response, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: PRODUCT_KEYS.detail(variables.productId),
+      });
+      queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.lists() });
+      queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.lowStock() });
+      queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.outOfStock() }); // NEW LINE
+      queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.stats() });
+      toast.success(
+        `Variation stock adjusted by ${variables.data.adjustment}${
+          variables.data.reason ? `. Reason: ${variables.data.reason}` : ""
+        }`
+      );
+    },
+    onError: (error: ApiError) =>
+      toast.error(error.message || "Failed to adjust variation stock"),
+  });
+}
+
 // --- UTILITY HOOKS ---
 
-/**
- * Optimistically update product in cache
- */
 export function useOptimisticProductUpdate() {
   const queryClient = useQueryClient();
 
@@ -183,9 +201,6 @@ export function useOptimisticProductUpdate() {
   };
 }
 
-/**
- * Invalidate all product-related queries
- */
 export function useInvalidateProducts() {
   const queryClient = useQueryClient();
 

@@ -1,7 +1,11 @@
 // hooks/use-cart-favorites.ts
 import { apiClient } from "@/lib/apiClient";
 import { ApiError } from "@/types/auth";
-import { AddToCartData, UpdateCartItemData } from "@/types/cart";
+import {
+  AddToCartData,
+  CalculateCartTotalsData,
+  UpdateCartItemData,
+} from "@/types/cart";
 import { Product, ProductsParams } from "@/types/product";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -308,4 +312,16 @@ export function useIsFavorite(productId: string) {
   }
 
   return data.data.favorites.some((fav: Product) => fav._id === productId);
+}
+
+/**
+ * Hook to calculate cart totals with tax, shipping, and discount
+ */
+export function useCalculateCartTotals() {
+  return useMutation({
+    mutationFn: (data: CalculateCartTotalsData) =>
+      apiClient.calculateCartTotals(data),
+    // Note: This is a mutation, so data is returned in the mutation result
+    // No need for onSuccess/onError here - let component handle it
+  });
 }

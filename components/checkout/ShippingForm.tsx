@@ -1,18 +1,28 @@
-// components/checkout/ShippingForm.tsx
+// components/checkout/ShippingForm.tsx (UPDATED with phone number handling)
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ShippingAddress } from "@/types/order";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ArrowLeft, Save } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useAddAddress } from "@/hooks/use-user-mutations";
+import { toast } from "sonner";
 
 interface ShippingFormProps {
   onSubmit: (address: ShippingAddress) => void;
   initialData: ShippingAddress | null;
+  showBackToSaved?: boolean;
+  onBackToSaved?: () => void;
 }
 
-export function ShippingForm({ onSubmit, initialData }: ShippingFormProps) {
+export function ShippingForm({
+  onSubmit,
+  initialData,
+  showBackToSaved = false,
+  onBackToSaved,
+}: ShippingFormProps) {
   const [formData, setFormData] = useState<ShippingAddress>(
     initialData || {
       address: "",
@@ -26,6 +36,11 @@ export function ShippingForm({ onSubmit, initialData }: ShippingFormProps) {
   const [errors, setErrors] = useState<
     Partial<Record<keyof ShippingAddress, string>>
   >({});
+
+  const [saveAddress, setSaveAddress] = useState(false);
+  const [setAsDefault, setSetAsDefault] = useState(false);
+
+  const addAddress = useAddAddress();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -52,6 +67,7 @@ export function ShippingForm({ onSubmit, initialData }: ShippingFormProps) {
     }
     if (
       formData.phoneNumber &&
+      formData.phoneNumber.trim() &&
       !/^\+?[\d\s-()]{10,20}$/.test(formData.phoneNumber)
     ) {
       newErrors.phoneNumber = "Invalid phone number format";
@@ -61,9 +77,26 @@ export function ShippingForm({ onSubmit, initialData }: ShippingFormProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
+      // Save address if requested
+      if (saveAddress) {
+        try {
+          await addAddress.mutateAsync({
+            address: formData.address,
+            city: formData.city,
+            postalCode: formData.postalCode,
+            country: formData.country,
+            phoneNumber: formData.phoneNumber || undefined,
+            isDefault: setAsDefault,
+          });
+          toast.success("Address saved for future orders!");
+        } catch (error) {
+          console.error("Failed to save address:", error);
+        }
+      }
+
       onSubmit(formData);
     }
   };
@@ -72,7 +105,7 @@ export function ShippingForm({ onSubmit, initialData }: ShippingFormProps) {
     <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-slate-900">
-          Shipping Information
+          {showBackToSaved ? "New " : ""}Shipping Address
         </h2>
         <p className="text-sm text-slate-500 mt-1">
           Where should we deliver your order?
@@ -86,7 +119,7 @@ export function ShippingForm({ onSubmit, initialData }: ShippingFormProps) {
             htmlFor="address"
             className="block text-sm font-medium text-slate-900 mb-2"
           >
-            Street Address
+            Street Address <span className="text-red-500">*</span>
           </Label>
           <Input
             id="address"
@@ -113,7 +146,7 @@ export function ShippingForm({ onSubmit, initialData }: ShippingFormProps) {
               htmlFor="city"
               className="block text-sm font-medium text-slate-900 mb-2"
             >
-              City
+              City <span className="text-red-500">*</span>
             </Label>
             <Input
               id="city"
@@ -138,7 +171,7 @@ export function ShippingForm({ onSubmit, initialData }: ShippingFormProps) {
               htmlFor="postalCode"
               className="block text-sm font-medium text-slate-900 mb-2"
             >
-              Postal Code
+              Postal Code <span className="text-red-500">*</span>
             </Label>
             <Input
               id="postalCode"
@@ -165,7 +198,7 @@ export function ShippingForm({ onSubmit, initialData }: ShippingFormProps) {
             htmlFor="country"
             className="block text-sm font-medium text-slate-900 mb-2"
           >
-            Country
+            Country <span className="text-red-500">*</span>
           </Label>
           <Input
             id="country"
@@ -197,25 +230,88 @@ export function ShippingForm({ onSubmit, initialData }: ShippingFormProps) {
           <Input
             id="phoneNumber"
             name="phoneNumber"
-            value={formData.phoneNumber}
+            type="tel"
+            value={formData.phoneNumber || ""}
             onChange={handleChange}
             placeholder="+1 (555) 123-4567"
-            className="h-12 border-slate-200 rounded-xl"
+            className={cn(
+              "h-12 rounded-xl transition-all",
+              errors.phoneNumber
+                ? "border-red-300 focus-visible:ring-red-500"
+                : "border-slate-200"
+            )}
           />
           {errors.phoneNumber && (
             <p className="text-xs text-red-500 mt-1.5">{errors.phoneNumber}</p>
           )}
+          <p className="text-xs text-slate-500 mt-1.5">
+            For delivery contact purposes. Include country code for
+            international numbers.
+          </p>
         </div>
 
-        {/* Submit Button */}
-        <Button
-          type="submit"
-          className="w-full h-12 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium shadow-sm hover:shadow-md transition-all"
-          size="lg"
-        >
-          Continue to Payment
-          <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
+        {/* Save Address Options */}
+        <div className="bg-slate-50 rounded-xl p-4 space-y-3 border border-slate-200">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="saveAddress"
+              checked={saveAddress}
+              onCheckedChange={(checked) => setSaveAddress(checked as boolean)}
+            />
+            <Label
+              htmlFor="saveAddress"
+              className="text-sm font-medium text-slate-900 cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Save className="h-4 w-4" />
+                Save this address for future orders
+              </div>
+            </Label>
+          </div>
+
+          {saveAddress && (
+            <div className="flex items-center space-x-2 ml-6">
+              <Checkbox
+                id="setAsDefault"
+                checked={setAsDefault}
+                onCheckedChange={(checked) =>
+                  setSetAsDefault(checked as boolean)
+                }
+              />
+              <Label
+                htmlFor="setAsDefault"
+                className="text-sm text-slate-600 cursor-pointer"
+              >
+                Set as default address
+              </Label>
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3 pt-4">
+          {showBackToSaved && onBackToSaved && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onBackToSaved}
+              className="h-12 rounded-xl border-2 border-slate-200 hover:bg-slate-50"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Saved
+            </Button>
+          )}
+
+          <Button
+            type="submit"
+            className="flex-1 h-12 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium shadow-sm hover:shadow-md transition-all"
+            size="lg"
+            disabled={addAddress.isPending}
+          >
+            Continue to Payment
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
       </form>
     </div>
   );

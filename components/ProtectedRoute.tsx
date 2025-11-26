@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect, ReactNode } from "react";
 import { Loader2 } from "lucide-react";
+import { useUserProfile } from "@/hooks/use-user-mutations";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -17,11 +18,13 @@ export function ProtectedRoute({
   requireEmailVerification = false,
   userType = "user",
 }: ProtectedRouteProps) {
-  const { user, token, isLoading } = useAuth();
+  const { token, isLoading } = useAuth();
+  const { data: userData, isLoading: isLoadingProfile } = useUserProfile();
+  const user = userData?.data;
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && !isLoadingProfile) {
       if (!token || !user) {
         router.push("/sign-in");
         return;
@@ -36,7 +39,15 @@ export function ProtectedRoute({
         return;
       }
     }
-  }, [user, token, isLoading, router, requireEmailVerification, userType]);
+  }, [
+    user,
+    token,
+    isLoading,
+    router,
+    requireEmailVerification,
+    userType,
+    isLoadingProfile,
+  ]);
 
   if (isLoading) {
     return (

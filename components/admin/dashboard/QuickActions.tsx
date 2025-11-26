@@ -2,33 +2,58 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart3, Filter, Package, ShoppingCart } from "lucide-react";
+import {
+  BarChart3,
+  Filter,
+  Info,
+  Package,
+  ScrollText,
+  Settings,
+  ShoppingCart,
+  UsersIcon,
+} from "lucide-react";
 import Link from "next/link";
 
 const actions = [
   {
+    label: "Website Settings",
+    href: "/admin/settings",
+    icon: Settings,
+  },
+  {
+    label: "Manage Users",
+    href: "/admin/users",
+    icon: UsersIcon,
+  },
+  {
     label: "Manage Products",
     href: "/admin/products",
     icon: Package,
-    color: "blue",
   },
   {
     label: "View Orders",
     href: "/admin/orders",
     icon: ShoppingCart,
-    color: "purple",
   },
   {
     label: "Manage Categories",
     href: "/admin/categories",
     icon: Filter,
-    color: "orange",
   },
   {
     label: "Manage Brands",
     href: "/admin/brands",
     icon: BarChart3,
-    color: "green",
+  },
+  {
+    label: "Manage Reviews",
+    href: "/admin/reviews",
+    icon: ScrollText,
+  },
+  {
+    label: "Stock Overview",
+    href: "/admin/stock",
+    icon: Info,
   },
 ];
 

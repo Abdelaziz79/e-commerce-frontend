@@ -7,7 +7,6 @@ import { CategoryModal } from "@/components/category/CategoryModal";
 import { useCategoryModal } from "@/components/category/hooks/useCategoryModal";
 import { AttributesForm } from "@/components/products/create/AttributesForm";
 import { BasicInfoForm } from "@/components/products/create/BasicInfoForm";
-// import { FormActions } from "@/components/products/create/FormActions";
 import { ImageForm } from "@/components/products/create/ImageForm";
 import { OrganizationForm } from "@/components/products/create/OrganizationForm";
 import { PricingForm } from "@/components/products/create/PricingForm";

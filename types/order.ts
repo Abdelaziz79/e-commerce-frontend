@@ -1,4 +1,4 @@
-// types/order.ts
+// types/order.ts - ENHANCED VERSION
 export interface OrderHistoryReference {
   order: string;
   totalPrice: number;
@@ -137,17 +137,14 @@ export interface CreateOrderData {
     phoneNumber?: string;
   };
   paymentMethod: string;
+  notes?: string;
+  discountCode?: string;
   itemsPrice: number;
+  subtotal: number;
   taxPrice: number;
   shippingPrice: number;
   totalPrice: number;
-  discount?: {
-    code: string;
-    type: "percentage" | "fixed";
-    value: number;
-    description?: string;
-  };
-  notes?: string;
+  discountAmount: number;
 }
 
 export interface UpdateOrderStatusData {
@@ -205,6 +202,8 @@ export interface SearchOrdersParams {
   q: string;
   page?: string | number;
   limit?: string | number;
+  sort?: string;
+  fields?: string;
 }
 
 // ============ RESPONSE TYPES ============
@@ -246,18 +245,158 @@ export interface OrderHistoryResponse {
 export interface OrderStatsResponse {
   status: string;
   data: {
+    // Overall stats
     totalOrders: number;
     totalSpent: number;
+    paidOrdersCount: number;
     averageOrderValue: number;
-    completedOrders: number;
-    cancelledOrders: number;
+
+    // Status breakdown (all statuses with counts)
+    statusCounts: Record<OrderStatus, number>;
+
+    // Quick access to common statuses (for backward compatibility)
     pendingOrders: number;
     processingOrders: number;
     shippedOrders: number;
-    paidOrdersCount: number;
-    statusCounts: Record<OrderStatus, number>;
+    deliveredOrders: number; // NEW: This was missing
+    completedOrders: number;
+    cancelledOrders: number;
+
+    // Recent orders
     recentOrders: Order[];
   };
+}
+
+export interface AnalyticsParams {
+  startDate?: string;
+  endDate?: string;
+  compareWithPrevious?: boolean;
+  [key: string]: string | boolean | undefined;
+}
+
+// ============ ENHANCED ANALYTICS TYPES ============
+
+export interface MonthlyRevenue {
+  _id: {
+    year: number;
+    month: number;
+  };
+  revenue: number;
+  orders: number;
+  averageOrderValue: number;
+  itemsSold: number;
+}
+
+export interface DailyRevenue {
+  _id: {
+    year: number;
+    month: number;
+    day: number;
+  };
+  revenue: number;
+  orders: number;
+}
+
+export interface TopProduct {
+  _id: string; // ✅ Changed from object to string (product ID)
+  totalQuantity: number;
+  totalRevenue: number;
+  orderCount: number;
+  productName: string;
+  averagePrice: number;
+  uniqueVariations?: Array<{
+    sku?: string;
+    size?: string;
+    color?: string;
+    quantity: number;
+  }>;
+}
+
+export interface CategoryPerformance {
+  _id: string;
+  totalQuantity: number;
+  totalRevenue: number;
+  orderCount: number;
+  uniqueProductCount: number;
+}
+
+export interface BrandPerformance {
+  _id: string;
+  totalQuantity: number;
+  totalRevenue: number;
+  orderCount: number;
+}
+
+export interface CustomerStats {
+  uniqueCustomers: number;
+  totalOrders: number;
+  averageOrdersPerCustomer: number;
+}
+
+export interface CustomerLoyalty {
+  totalCustomers: number;
+  repeatCustomers: number;
+  repeatCustomerRate: number;
+  averageOrdersPerCustomer: number;
+  averageLifetimeValue: number;
+}
+
+export interface FulfillmentMetrics {
+  averageFulfillmentDays: number;
+  minFulfillmentDays: number;
+  maxFulfillmentDays: number;
+}
+
+export interface StatusBreakdown {
+  _id: string;
+  count: number;
+  totalValue: number;
+}
+
+export interface ConversionMetrics {
+  totalOrders: number;
+  paidOrders: number;
+  completedOrders: number;
+  cancelledOrders: number;
+  failedOrders: number;
+  paymentConversionRate: number;
+  completionRate: number;
+  cancellationRate: number;
+  failureRate: number;
+}
+
+export interface PaymentMethodStats {
+  _id: string;
+  count: number;
+  totalRevenue: number;
+  averageOrderValue: number;
+}
+
+export interface ShippingStats {
+  _id: string;
+  orders: number;
+  revenue: number;
+  averageShippingCost: number;
+  uniqueCities: number;
+}
+
+export interface DiscountUsage {
+  _id: string;
+  usageCount: number;
+  totalDiscountGiven: number;
+  totalRevenue: number;
+  averageDiscount: number;
+}
+
+export interface RefundStats {
+  totalRefunds: number;
+  totalRefundAmount: number;
+  averageRefundAmount: number;
+}
+
+export interface TaxStats {
+  totalTaxCollected: number;
+  averageTaxPerOrder: number;
 }
 
 export interface OrderAnalyticsResponse {
@@ -266,33 +405,85 @@ export interface OrderAnalyticsResponse {
     overview: {
       totalOrders: number;
       totalRevenue: number;
-      recentOrdersCount: number;
+      totalPaidOrders: number;
+      averageOrderValue: number;
+    };
+    periodAnalysis: {
+      current: {
+        startDate: string;
+        endDate: string;
+        orders: number;
+        revenue: number;
+        averageOrderValue: number;
+        totalItems: number;
+        totalDiscount: number;
+        totalTax: number;
+        totalShipping: number;
+      };
+      previous: {
+        startDate: string;
+        endDate: string;
+        orders: number;
+        revenue: number;
+        averageOrderValue: number;
+      };
+      growth: {
+        revenue: number;
+        orders: number;
+        averageOrderValue: number;
+      };
+    };
+    quickStats: {
+      last24Hours: {
+        orders: number;
+        revenue: number;
+      };
+      last7Days: {
+        orders: number;
+        revenue: number;
+        averageOrderValue: number;
+      };
+      last30Days: {
+        orders: number;
+        revenue: number;
+        averageOrderValue: number;
+      };
+    };
+    trends: {
+      monthly: MonthlyRevenue[];
+      daily: DailyRevenue[];
+    };
+    products: {
+      topSelling: TopProduct[];
+      byCategory: CategoryPerformance[];
+      byBrand: BrandPerformance[];
+    };
+    customers: {
+      stats: CustomerStats;
+      loyalty: CustomerLoyalty;
+    };
+    operations: {
+      fulfillment: FulfillmentMetrics;
+      statusBreakdown: {
+        byStatus: StatusBreakdown[];
+        conversionMetrics: ConversionMetrics;
+      };
+    };
+    financial: {
+      paymentMethods: PaymentMethodStats[];
+      discounts: {
+        topCodes: DiscountUsage[];
+        summary: {
+          totalDiscountGiven: number;
+          ordersWithDiscount: number;
+        };
+      };
+      refunds: RefundStats;
+      tax: TaxStats;
+    };
+    geography: {
+      topCountries: ShippingStats[];
     };
     statusDistribution: Record<OrderStatus, number>;
-    last24Hours: {
-      orders: number;
-      revenue: number;
-    };
-    last30Days: {
-      orders: number;
-      revenue: number;
-      averageOrderValue: number;
-    };
-    monthlyRevenue: {
-      _id: {
-        year: number;
-        month: number;
-      };
-      revenue: number;
-      orders: number;
-      averageOrderValue: number;
-    }[];
-    topProducts: {
-      _id: string;
-      totalQuantity: number;
-      totalRevenue: number;
-      orderCount: number;
-      productName: string;
-    }[];
   };
 }

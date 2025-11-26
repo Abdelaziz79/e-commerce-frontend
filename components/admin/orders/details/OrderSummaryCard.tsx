@@ -19,8 +19,8 @@ export function OrderSummaryCard({ order }: OrderSummaryCardProps) {
       </CardHeader>
       <CardContent className="p-5 space-y-3">
         <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Subtotal</span>
-          <span className="text-gray-900">${order.subtotal.toFixed(2)}</span>
+          <span className="text-gray-600">Item(s) Price</span>
+          <span className="text-gray-900">${order.itemsPrice.toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Tax</span>
