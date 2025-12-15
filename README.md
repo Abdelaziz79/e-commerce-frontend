@@ -1,6 +1,6 @@
 # TechStore - Modern E-Commerce Frontend
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Next.js](https://img.shields.io/badge/Next.js-14-black) ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg) ![Next.js](https://img.shields.io/badge/Next.js-14-black) ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
 
 A high-performance, enterprise-grade E-Commerce frontend application. Built with **Next.js 14 App Router**, structured using a **Service-Repository pattern** via a custom API Client, and state-managed by **TanStack Query (React Query)**.
 
